@@ -4,3 +4,4 @@ node_modules/
 backup/*
 !backup/.gitkeep
 .DS_Store
+.cursor/
