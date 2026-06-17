@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Figma Backup</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="page-header">
+      <h1>Figma Backup</h1>
+      <button type="button" id="btn-theme" class="btn-theme" aria-label="Переключить тему" title="Тёмная тема">
+        <svg class="icon-theme-moon" width="20" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.39 5.39 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/>
+        </svg>
+        <svg class="icon-theme-sun hidden" width="20" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+        </svg>
+      </button>
+    </div>
+
+    <section class="auth-section">
+      <h2>Авторизация</h2>
+      <p id="auth-hint" class="auth-hint-main"></p>
+      <div class="auth-cards">
+        <div id="card-figma" class="auth-card">
+          <div class="auth-card-header">
+            <span class="auth-card-title">Figma</span>
+            <span id="status-figma" class="status">—</span>
+          </div>
+          <button id="btn-auth-figma" class="btn-auth">Войти в Figma</button>
+        </div>
+        <div id="card-google" class="auth-card">
+          <div class="auth-card-header">
+            <span class="auth-card-title">Google Drive</span>
+            <span id="status-google" class="status">—</span>
+          </div>
+          <button id="btn-auth-google" class="btn-auth">Войти в Google Drive</button>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-header">
+        <h2>Ссылки</h2>
+        <button type="button" id="btn-add-link" class="btn-add-link">
+          <svg width="20" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+          Добавить ссылку
+        </button>
+      </div>
+      <table id="links-table">
+        <thead>
+          <tr>
+            <th class="col-check">
+              <input type="checkbox" id="toggle-all" aria-label="Выбрать все" title="Выбрать все">
+            </th>
+            <th>Название</th>
+            <th>Figma</th>
+            <th>Drive</th>
+            <th class="col-actions">Действия</th>
+          </tr>
+        </thead>
+        <tbody id="links-body"></tbody>
+      </table>
+      <div class="backup-row">
+        <button id="btn-backup" class="backup-btn" disabled>Сделать бэкап</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Лог</h2>
+      <div id="log-panel" class="log-panel"></div>
+    </section>
+  </div>
+
+  <div id="link-modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h2 id="modal-title">Добавить ссылку</h2>
+        <button type="button" class="modal-close" data-close-modal aria-label="Закрыть">×</button>
+      </div>
+      <form id="form-link" class="modal-form">
+        <input type="hidden" id="input-link-id">
+        <label>
+          Название
+          <input type="text" id="input-name" placeholder="Название проекта" required>
+        </label>
+        <label>
+          Ссылка Figma
+          <input type="url" id="input-figma" placeholder="https://www.figma.com/design/..." required>
+        </label>
+        <label>
+          Папка Google Drive
+          <input type="url" id="input-drive" placeholder="https://drive.google.com/drive/folders/..." required>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" data-close-modal>Отмена</button>
+          <button type="submit" class="btn-primary" id="btn-modal-save">Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="delete-modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close-delete></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+      <div class="modal-header">
+        <h2 id="delete-modal-title">Удалить ссылку?</h2>
+        <button type="button" class="modal-close" data-close-delete aria-label="Закрыть">×</button>
+      </div>
+      <p id="delete-modal-text" class="modal-text"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" data-close-delete>Отмена</button>
+        <button type="button" class="btn-danger" id="btn-confirm-delete">Удалить</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

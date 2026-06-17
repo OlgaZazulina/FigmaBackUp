@@ -1,0 +1,17 @@
+{
+  "name": "figma-backup",
+  "version": "1.0.0",
+  "description": "Backup Figma .fig files to local folder and Google Drive",
+  "main": "start.js",
+  "scripts": {
+    "start": "node start.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "playwright": "^1.49.0",
+    "uuid": "^11.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
