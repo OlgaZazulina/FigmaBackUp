@@ -5,4 +5,4 @@ backup/*
 !backup/.gitkeep
 .DS_Store
 .cursor/
-docs/*
+docs/
