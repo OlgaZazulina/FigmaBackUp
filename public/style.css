@@ -291,15 +291,18 @@ td.col-check input[type="checkbox"] {
   align-items: center;
   justify-content: center;
   color: var(--color-muted);
+  opacity: 0.4;
   cursor: grab;
   padding: 4px;
   border-radius: var(--radius-sm);
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  transition: opacity 0.15s ease, color 0.15s ease;
 }
 .drag-handle:hover {
-  color: var(--color-heading);
+  color: var(--color-muted);
+  opacity: 0.75;
 }
 .drag-handle:active {
   cursor: grabbing;
@@ -324,28 +327,40 @@ tr.drop-after td {
 .cell-name {
   color: var(--color-heading);
 }
-td.col-url {
-  max-width: 220px;
-}
-.cell-link {
-  display: block;
-  color: var(--color-primary);
-  text-decoration: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
+
+th.col-links,
+td.col-links {
+  width: 88px;
   white-space: nowrap;
 }
-.cell-link:hover {
-  text-decoration: underline;
-  color: var(--color-primary-hover);
+
+.link-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
-[data-theme="dark"] .cell-link {
-  text-decoration: underline;
-  text-underline-offset: 2px;
+.link-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: background 0.15s ease;
 }
-[data-theme="dark"] .cell-link:hover {
-  color: var(--color-primary-hover);
+
+.link-icon img {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+.link-icon:hover,
+.link-icon:focus-visible {
+  background: var(--bg-surface-alt);
+  outline: none;
 }
 
 .backup-row { margin-top: 16px; }

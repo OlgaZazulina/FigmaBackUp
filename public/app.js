@@ -92,12 +92,6 @@ function escapeHtml(str) {
   return d.innerHTML;
 }
 
-function formatLinkLabel(url) {
-  return url
-    .replace(/^https?:\/\//i, '')
-    .replace(/^www\./i, '');
-}
-
 function initTheme() {
   const saved = localStorage.getItem(THEME_KEY);
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -134,8 +128,16 @@ function renderLinks(links) {
       </td>
       <td class="col-check"><input type="checkbox" ${link.enabled ? 'checked' : ''} data-action="toggle" data-id="${link.id}"></td>
       <td class="cell-name">${escapeHtml(link.name)}</td>
-      <td class="col-url"><a class="cell-link" href="${escapeHtml(link.figmaUrl)}" target="_blank" rel="noopener">${escapeHtml(formatLinkLabel(link.figmaUrl))}</a></td>
-      <td class="col-url"><a class="cell-link" href="${escapeHtml(link.driveFolderUrl)}" target="_blank" rel="noopener">${escapeHtml(formatLinkLabel(link.driveFolderUrl))}</a></td>
+      <td class="col-links">
+        <div class="link-icons">
+          <a class="link-icon" href="${escapeHtml(link.figmaUrl)}" target="_blank" rel="noopener" aria-label="Открыть Figma">
+            <img src="/icons/figma.svg" width="20" height="20" alt="">
+          </a>
+          <a class="link-icon" href="${escapeHtml(link.driveFolderUrl)}" target="_blank" rel="noopener" aria-label="Открыть Google Drive">
+            <img src="/icons/logo_drive_2026_color_2x_web_48dp.png" width="20" height="20" alt="">
+          </a>
+        </div>
+      </td>
       <td class="actions-cell">
         <div class="actions-group">
           <button type="button" class="btn-action btn-action-edit" data-action="edit" data-id="${link.id}" title="Изменить" aria-label="Изменить">${ICON_EDIT}</button>
