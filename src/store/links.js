@@ -63,6 +63,30 @@ function deleteLink(id) {
   return true;
 }
 
+function reorderLinks(ids) {
+  if (!Array.isArray(ids)) return null;
+
+  const data = readData();
+  const current = data.links;
+  if (ids.length !== current.length) return null;
+
+  const byId = new Map(current.map((l) => [l.id, l]));
+  const seen = new Set();
+  const reordered = [];
+
+  for (const id of ids) {
+    if (typeof id !== 'string' || seen.has(id) || !byId.has(id)) return null;
+    seen.add(id);
+    reordered.push(byId.get(id));
+  }
+
+  if (seen.size !== current.length) return null;
+
+  data.links = reordered;
+  writeData(data);
+  return reordered;
+}
+
 module.exports = {
   getLinks,
   getEnabledLinks,
@@ -70,5 +94,6 @@ module.exports = {
   addLink,
   updateLink,
   deleteLink,
+  reorderLinks,
   _setLinksFileForTest,
 };

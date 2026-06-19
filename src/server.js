@@ -32,6 +32,18 @@ function createServer(port) {
     res.status(201).json(link);
   });
 
+  app.put('/api/links/reorder', (req, res) => {
+    const { ids } = req.body;
+    if (!Array.isArray(ids)) {
+      return res.status(400).json({ error: 'Некорректный список id' });
+    }
+    const reordered = links.reorderLinks(ids);
+    if (!reordered) {
+      return res.status(400).json({ error: 'Некорректный порядок ссылок' });
+    }
+    res.json({ links: reordered });
+  });
+
   app.put('/api/links/:id', (req, res) => {
     const updated = links.updateLink(req.params.id, req.body);
     if (!updated) return res.status(404).json({ error: 'Ссылка не найдена' });
