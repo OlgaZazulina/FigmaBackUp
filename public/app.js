@@ -4,10 +4,14 @@ const ICON_EDIT = `<svg width="20" height="19" viewBox="0 0 24 24" fill="current
 
 const ICON_DELETE = `<svg width="20" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`;
 
+const ICON_DRAG = `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="5" cy="4" r="1.25"/><circle cx="11" cy="4" r="1.25"/><circle cx="5" cy="8" r="1.25"/><circle cx="11" cy="8" r="1.25"/><circle cx="5" cy="12" r="1.25"/><circle cx="11" cy="12" r="1.25"/></svg>`;
+
 const THEME_KEY = 'figma-backup-theme';
 
 let linksCache = [];
 let pendingDeleteId = null;
+let backupInProgress = false;
+let dragState = null;
 
 async function api(method, path, body) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
@@ -52,12 +56,46 @@ async function refreshAuthStatus() {
   renderServiceStatus(status.figma, $('#card-figma'), $('#status-figma'));
   renderServiceStatus(status.google, $('#card-google'), $('#status-google'));
   $('#btn-backup').disabled = !status.ready;
+  syncDragHandles();
+}
+
+function getOrderedIds() {
+  return [...$('#links-body').querySelectorAll('tr')].map((tr) => tr.dataset.id);
+}
+
+function clearDropIndicators() {
+  $('#links-body').querySelectorAll('.drop-before, .drop-after').forEach((row) => {
+    row.classList.remove('drop-before', 'drop-after');
+  });
+}
+
+function syncDragHandles() {
+  const disabled = backupInProgress;
+  $('#links-body').querySelectorAll('.drag-handle').forEach((handle) => {
+    handle.classList.toggle('drag-handle-disabled', disabled);
+  });
+}
+
+async function persistLinkOrder(previous) {
+  try {
+    const data = await api('PUT', '/api/links/reorder', { ids: getOrderedIds() });
+    linksCache = data.links;
+  } catch (err) {
+    renderLinks(previous);
+    appendLog({ timestamp: new Date().toISOString(), level: 'error', message: err.message });
+  }
 }
 
 function escapeHtml(str) {
   const d = document.createElement('div');
   d.textContent = str;
   return d.innerHTML;
+}
+
+function formatLinkLabel(url) {
+  return url
+    .replace(/^https?:\/\//i, '')
+    .replace(/^www\./i, '');
 }
 
 function initTheme() {
@@ -89,11 +127,15 @@ function renderLinks(links) {
   tbody.innerHTML = '';
   for (const link of links) {
     const tr = document.createElement('tr');
+    tr.dataset.id = link.id;
     tr.innerHTML = `
+      <td class="col-drag">
+        <span class="drag-handle" data-id="${link.id}" aria-label="Перетащить" title="Перетащить">${ICON_DRAG}</span>
+      </td>
       <td class="col-check"><input type="checkbox" ${link.enabled ? 'checked' : ''} data-action="toggle" data-id="${link.id}"></td>
       <td class="cell-name">${escapeHtml(link.name)}</td>
-      <td><a class="cell-link" href="${escapeHtml(link.figmaUrl)}" target="_blank" rel="noopener">Figma</a></td>
-      <td><a class="cell-link" href="${escapeHtml(link.driveFolderUrl)}" target="_blank" rel="noopener">Drive</a></td>
+      <td class="col-url"><a class="cell-link" href="${escapeHtml(link.figmaUrl)}" target="_blank" rel="noopener">${escapeHtml(formatLinkLabel(link.figmaUrl))}</a></td>
+      <td class="col-url"><a class="cell-link" href="${escapeHtml(link.driveFolderUrl)}" target="_blank" rel="noopener">${escapeHtml(formatLinkLabel(link.driveFolderUrl))}</a></td>
       <td class="actions-cell">
         <div class="actions-group">
           <button type="button" class="btn-action btn-action-edit" data-action="edit" data-id="${link.id}" title="Изменить" aria-label="Изменить">${ICON_EDIT}</button>
@@ -103,6 +145,7 @@ function renderLinks(links) {
     tbody.appendChild(tr);
   }
   syncSelectAllCheckbox();
+  syncDragHandles();
 }
 
 function syncSelectAllCheckbox() {
@@ -213,6 +256,67 @@ $('#form-link').addEventListener('submit', async (e) => {
   await refreshLinks();
 });
 
+$('#links-body').addEventListener('pointerdown', (e) => {
+  const handle = e.target.closest('.drag-handle');
+  if (!handle || handle.classList.contains('drag-handle-disabled')) return;
+  if (e.button !== 0) return;
+
+  const tr = handle.closest('tr');
+  if (!tr) return;
+
+  e.preventDefault();
+  dragState = {
+    tr,
+    pointerId: e.pointerId,
+    insertBefore: true,
+    target: null,
+  };
+  tr.classList.add('row-dragging');
+  handle.setPointerCapture(e.pointerId);
+});
+
+$('#links-body').addEventListener('pointermove', (e) => {
+  if (!dragState || e.pointerId !== dragState.pointerId) return;
+
+  const tbody = $('#links-body');
+  const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('tr');
+  clearDropIndicators();
+
+  if (!target || !tbody.contains(target) || target === dragState.tr) {
+    dragState.target = null;
+    return;
+  }
+
+  const rect = target.getBoundingClientRect();
+  const insertBefore = e.clientY < rect.top + rect.height / 2;
+  target.classList.add(insertBefore ? 'drop-before' : 'drop-after');
+  dragState.target = target;
+  dragState.insertBefore = insertBefore;
+});
+
+async function finishRowDrag(e) {
+  if (!dragState || e.pointerId !== dragState.pointerId) return;
+
+  const tbody = $('#links-body');
+  const { tr, target, insertBefore } = dragState;
+  dragState = null;
+  tr.classList.remove('row-dragging');
+  clearDropIndicators();
+
+  if (!target || target === tr) return;
+
+  if (insertBefore) {
+    tbody.insertBefore(tr, target);
+  } else {
+    tbody.insertBefore(tr, target.nextElementSibling);
+  }
+
+  await persistLinkOrder([...linksCache]);
+}
+
+$('#links-body').addEventListener('pointerup', finishRowDrag);
+$('#links-body').addEventListener('pointercancel', finishRowDrag);
+
 $('#links-body').addEventListener('change', async (e) => {
   const input = e.target.closest('[data-action="toggle"]');
   if (!input) return;
@@ -285,13 +389,18 @@ $('#btn-auth-google').addEventListener('click', async () => {
 });
 
 $('#btn-backup').addEventListener('click', async () => {
+  backupInProgress = true;
   $('#btn-backup').disabled = true;
+  syncDragHandles();
   try {
     await api('POST', '/api/backup');
     await refreshAuthStatus();
   } catch (err) {
     appendLog({ timestamp: new Date().toISOString(), level: 'error', message: err.message });
     await refreshAuthStatus();
+  } finally {
+    backupInProgress = false;
+    syncDragHandles();
   }
 });
 
