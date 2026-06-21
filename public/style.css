@@ -393,9 +393,9 @@ td.col-check input[type="checkbox"] {
 }
 th.col-name,
 td.col-name {
-  width: 1%;
-  white-space: nowrap;
-  padding-right: 4px;
+  width: 240px;
+  max-width: 240px;
+  padding-right: 8px;
 }
 th.col-links,
 td.col-links {
@@ -461,7 +461,10 @@ tr.drop-after td {
 
 .cell-name {
   color: var(--color-heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .link-icons {

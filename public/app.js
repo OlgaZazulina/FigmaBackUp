@@ -386,7 +386,7 @@ function renderLinks(links) {
         <span class="drag-handle" data-id="${link.id}" aria-label="Перетащить" title="Перетащить">${ICON_DRAG}</span>
       </td>
       <td class="col-check"><input type="checkbox" ${link.enabled ? 'checked' : ''} data-action="toggle" data-id="${link.id}"></td>
-      <td class="col-name cell-name">${escapeHtml(link.name)}</td>
+      <td class="col-name cell-name" title="${escapeHtml(link.name)}">${escapeHtml(link.name)}</td>
       <td class="col-links">
         <div class="link-icons">
           <a class="link-icon" href="${escapeHtml(link.figmaUrl)}" target="_blank" rel="noopener" aria-label="Открыть Figma">

@@ -1,49 +1,445 @@
 {
   "links": [
     {
-      "id": "8acb01dc-8031-4245-8ba0-f10d837af013",
-      "name": "FakeApps 2 (AGG)",
-      "figmaUrl": "https://www.figma.com/design/posnoNJyTnFt58DfCnhd2B/FakeApps-2--AGG-?m=auto&t=MeqqBtjshC1Kwcie-6",
-      "driveFolderUrl": "https://drive.google.com/drive/folders/1si3PyrRdEDlQXGBVBB-E8BmC8sONKCWs",
+      "id": "680c2076-81d8-420d-afbb-e2b5a4a85ff8",
+      "name": "ANTIFROG",
+      "figmaUrl": "https://www.figma.com/design/SHKsyMgytJfTOgUzQam00f/ANTIFROG?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1LLt6R6p75m9iy6T6RrxQAcUgLdjItU23",
       "enabled": true,
-      "responsible": "Софа",
-      "backup": "Шамиль"
+      "responsible": "Таня Б",
+      "backup": "Настя Е"
     },
     {
       "id": "4bcaa6e4-2d1f-4cef-bd5c-6c3038122a93",
       "name": "BroBroCasino",
-      "figmaUrl": "https://www.figma.com/design/1h2w7FvVTw43uxyrq8b4dG/BroBroCasino?m=auto&t=QLxb1ITnY6OWTuXl-6",
-      "driveFolderUrl": "https://drive.google.com/drive/folders/1XiEj2271ZEzCFbjX8slJ-ISGwAcEIDoO?usp=drive_link",
-      "enabled": false,
+      "figmaUrl": "https://www.figma.com/design/1h2w7FvVTw43uxyrq8b4dG/BroBroCasino?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1XiEj2271ZEzCFbjX8slJ-ISGwAcEIDoO",
+      "enabled": true,
+      "responsible": "Таня Б",
+      "backup": "Туран"
+    },
+    {
+      "id": "a8f25dbd-9212-4cbc-af3a-6ce6b91c8513",
+      "name": "BroMoney (AGG)",
+      "figmaUrl": "https://www.figma.com/design/4DbARQY0iH2SQHoXlQEB6q/BroMoney--AGG-?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1nPXTwsWLJvXYIV7HuOeBuHzC7Z49e3r2",
+      "enabled": true,
+      "responsible": "Оля Л",
+      "backup": "Софа"
+    },
+    {
+      "id": "ab400c59-4c5a-414d-a4b7-f85f9dcde10e",
+      "name": "Catalog of Crash Games (AGG)",
+      "figmaUrl": "https://www.figma.com/design/Ly4eioYpluAxEYoTd9Vh9H/Catalog-of-Crash-Games--AGG-?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1b3V1089-n4thS30zJ24qeyB_h1bVixT3",
+      "enabled": true,
+      "responsible": "Туран",
+      "backup": "Таня Б"
+    },
+    {
+      "id": "9b5511b3-4d42-4289-b3c1-dfd073239b1b",
+      "name": "Crash Games (AGG)",
+      "figmaUrl": "https://www.figma.com/design/c6RRgBe8QxZ2MhIv913LsE/Crash-Games--AGG-?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1b3V1089-n4thS30zJ24qeyB_h1bVixT3",
+      "enabled": true,
+      "responsible": "Туран",
+      "backup": "Таня Б"
+    },
+    {
+      "id": "c3f34b56-0b42-4171-8c9f-259904706c69",
+      "name": "Shadcn Universal DS",
+      "figmaUrl": "https://www.figma.com/design/hDYKtl651NL0aPgg7owedU/Shadcn-Universal-DS?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1z2z8hQU6N02a21FgPe_WcdHKjMDNqwkJ",
+      "enabled": true,
+      "responsible": "Оля Л",
+      "backup": "Настя Е"
+    },
+    {
+      "id": "8acb01dc-8031-4245-8ba0-f10d837af013",
+      "name": "FakeApps 2 (AGG)",
+      "figmaUrl": "https://www.figma.com/design/posnoNJyTnFt58DfCnhd2B/FakeApps-2--AGG-?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1si3PyrRdEDlQXGBVBB-E8BmC8sONKCWs",
+      "enabled": true,
+      "responsible": "Оля Л",
+      "backup": "Таня Б"
+    },
+    {
+      "id": "c35cd873-5c57-41b3-94c1-1de5e4920513",
+      "name": "Design tips",
+      "figmaUrl": "https://www.figma.com/design/Sa0Z7laG3qAyCo6bwtqv3s/Design-tips?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1JGvF2AVdflr6W0RlXy9OO987heM2DU1k",
+      "enabled": true,
+      "responsible": "Таня С",
+      "backup": "Софа"
+    },
+    {
+      "id": "418b867b-238f-4ba7-b99a-f59034725c8f",
+      "name": "Admin  Panels 💎",
+      "figmaUrl": "https://www.figma.com/design/qJJuFrGuMN61O35MP79fRP/Admin--Panels-%F0%9F%92%8E?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1fFF66aX4oDx5PBHi8IvixMnV7-GwnzQK",
+      "enabled": true,
+      "responsible": "Оля Л",
+      "backup": "Настя Е"
+    },
+    {
+      "id": "89688e35-9c14-437a-a2ed-f26cec4035a4",
+      "name": "Backlog_ May be interesting",
+      "figmaUrl": "https://www.figma.com/design/exvVjdwrhNUbEshKj4986S/Backlog--May-be-interesting?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1fFF66aX4oDx5PBHi8IvixMnV7-GwnzQK",
+      "enabled": true,
+      "responsible": "Таня С",
+      "backup": "Софа"
+    },
+    {
+      "id": "ff82c825-73fc-4c22-ad7d-fd246d79e3d8",
+      "name": "Betting applications 🎯",
+      "figmaUrl": "https://www.figma.com/design/XcDod4E9oWu7n2SFxN0GkT/Betting-applications-%F0%9F%8E%AF?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1fFF66aX4oDx5PBHi8IvixMnV7-GwnzQK",
+      "enabled": true,
+      "responsible": "Таня С",
+      "backup": "Софа"
+    },
+    {
+      "id": "bb117fb2-75b9-41e3-8533-65434c1d7a42",
+      "name": "Casino applications 🎰",
+      "figmaUrl": "https://www.figma.com/design/M4yOu2i2bUPUbqIkcwboXZ/Casino-applications-%F0%9F%8E%B0?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1fFF66aX4oDx5PBHi8IvixMnV7-GwnzQK",
+      "enabled": true,
+      "responsible": "Туран",
+      "backup": "Таня Б"
+    },
+    {
+      "id": "d00f03e9-742f-407d-9df9-23289ab527cd",
+      "name": "New Year 🎄",
+      "figmaUrl": "https://www.figma.com/design/ZyISEDbpKVmWRPZpysnkFx/New-Year-%F0%9F%8E%84?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1fFF66aX4oDx5PBHi8IvixMnV7-GwnzQK",
+      "enabled": true,
+      "responsible": "Таня С",
+      "backup": "Софа"
+    },
+    {
+      "id": "aa755885-5865-4cce-be2c-0a8589495164",
+      "name": "Service applications 📱",
+      "figmaUrl": "https://www.figma.com/design/MN3z2oDjeK5XRcfjsmG3fF/Service-applications-%F0%9F%93%B1?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1fFF66aX4oDx5PBHi8IvixMnV7-GwnzQK",
+      "enabled": true,
+      "responsible": "Таня С",
+      "backup": "Софа"
+    },
+    {
+      "id": "130d3cdf-d26a-44bd-b8d1-ae20c0cf0e05",
+      "name": "Kod.Mobi (AGG)",
+      "figmaUrl": "https://www.figma.com/design/vinRHQSZEpRUwXSR15ylix/Kod.Mobi--AGG-?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1DKlbMrX-SQY8nmhYU1AyFL8fu6MEqtUg",
+      "enabled": true,
+      "responsible": "Оля Л",
+      "backup": "Настя Е"
+    },
+    {
+      "id": "78d8eea4-1535-4638-8f85-569720d4acc2",
+      "name": "Marketing Banners (AGG)",
+      "figmaUrl": "https://www.figma.com/design/4assdurrDZnJmIDmASlbBj/Marketing-Banners--AGG-?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1txnCKQd6qawLyY3vGnZTBskmYkRxeOAC",
+      "enabled": true,
+      "responsible": "Таня Б",
+      "backup": "Оля Л"
+    },
+    {
+      "id": "397a509c-4df6-4437-8c12-9a75b3abcd98",
+      "name": "Olimp Admin New",
+      "figmaUrl": "https://www.figma.com/design/wfDGXcRuaZiJ3Y4KSHVAx1/Olimp-Admin-New?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1N0Pmr2eD9oubP1-ufRvsMrlt3D4i7fmi",
+      "enabled": true,
+      "responsible": "Настя Е",
+      "backup": "Оля Л"
+    },
+    {
+      "id": "7dd9ea62-7c7f-4fd2-a4ac-3476860aaebf",
+      "name": "Olimp admin_ shadcn",
+      "figmaUrl": "https://www.figma.com/design/5LEAkddmvVsSAS2mqBrLm9/Olimp-admin--shadcn?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1N0Pmr2eD9oubP1-ufRvsMrlt3D4i7fmi",
+      "enabled": true,
+      "responsible": "Настя Е",
+      "backup": "Оля Л"
+    },
+    {
+      "id": "6f843113-80ae-4245-8e3c-d275861b2018",
+      "name": "🍏 Olimp iOS _ Prod",
+      "figmaUrl": "https://www.figma.com/design/h1Jcp0cKdgYFH9NOdlAL9w/%F0%9F%8D%8F-Olimp-iOS-%7C-Prod?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1GT4rOP5R6u4_zUgUc_S_4idiqLRogghA",
+      "enabled": true,
       "responsible": "Шамиль",
       "backup": "Настя С"
     },
     {
-      "id": "cfd60c6c-9f9e-420d-a9e6-ad973e07dbca",
-      "name": "вавыавы",
-      "figmaUrl": "https://lottiefiles.com/preview",
-      "driveFolderUrl": "https://lottiefiles.com/preview",
-      "enabled": false,
-      "responsible": "Настя С",
-      "backup": "Настя Е"
+      "id": "b75982a2-21fd-4182-8691-93f1258a647b",
+      "name": "📚 DS Olimp Apps",
+      "figmaUrl": "https://www.figma.com/design/ILYuenLXZuVkaEiQn1aPaO/%F0%9F%93%9A-DS-Olimp-Apps?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1GT4rOP5R6u4_zUgUc_S_4idiqLRogghA",
+      "enabled": true,
+      "responsible": "Шамиль",
+      "backup": "Настя С"
     },
     {
-      "id": "ac1465ea-a9ca-486e-b9e8-8e4835aa584e",
-      "name": "пвававыа",
-      "figmaUrl": "https://lottiefiles.com/preview",
-      "driveFolderUrl": "https://lottiefiles.com/preview",
-      "enabled": false,
-      "responsible": "Настя Е",
+      "id": "40d91298-4c4a-4d6a-b91f-5475945dd70d",
+      "name": "🤖 Olimp Android  _ Prod",
+      "figmaUrl": "https://www.figma.com/design/xaapkBxNgQuUfkzyWhtCYF/%F0%9F%A4%96-Olimp-Android--%7C-Prod?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1GT4rOP5R6u4_zUgUc_S_4idiqLRogghA",
+      "enabled": true,
+      "responsible": "Шамиль",
+      "backup": "Настя С"
+    },
+    {
+      "id": "9419b5c2-bbcb-4667-93d7-c88f1a8ffb29",
+      "name": "✅ NEW Olimp Prod",
+      "figmaUrl": "https://www.figma.com/design/pQjL45Jt4c6O70mzFaoWtb/%E2%9C%85-NEW-Olimp-Prod?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1Na1sqNYH9Y7jpAlkR6VAWwNUTZIuNWcE",
+      "enabled": true,
+      "responsible": "Настя С",
+      "backup": "Шамиль"
+    },
+    {
+      "id": "4257185c-2465-48bc-a792-0e712c1084d1",
+      "name": "📚 1. DS TOKENS",
+      "figmaUrl": "https://www.figma.com/design/AJIAYQwx9TDBbZ7mLhhwYc/%F0%9F%93%9A-1.-DS-TOKENS?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1Na1sqNYH9Y7jpAlkR6VAWwNUTZIuNWcE",
+      "enabled": true,
+      "responsible": "Настя С",
+      "backup": "Шамиль"
+    },
+    {
+      "id": "238fdbd5-9178-4970-9571-effa16be7095",
+      "name": "📚 2. DS ASSETS",
+      "figmaUrl": "https://www.figma.com/design/mg8cI4OikqVNTKpgNFX8LF/%F0%9F%93%9A-2.-DS-ASSETS?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1Na1sqNYH9Y7jpAlkR6VAWwNUTZIuNWcE",
+      "enabled": true,
+      "responsible": "Настя С",
+      "backup": "Шамиль"
+    },
+    {
+      "id": "d3635ca4-db35-467e-a8cb-b9875ed1f202",
+      "name": "📚 3. DS APP",
+      "figmaUrl": "https://www.figma.com/design/tzw3v4OMaK0YI3x5qXk42T/%F0%9F%93%9A-3.-DS-APP?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1Na1sqNYH9Y7jpAlkR6VAWwNUTZIuNWcE",
+      "enabled": true,
+      "responsible": "Настя С",
+      "backup": "Шамиль"
+    },
+    {
+      "id": "540c0a65-7df5-4615-bcc5-ce0d930b66bd",
+      "name": "🎄Happy New Year",
+      "figmaUrl": "https://www.figma.com/design/GjlUtnuBm8u0Q33clGs1G6/%F0%9F%8E%84Happy-New-Year?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1RJEM8py0l_ZxWL3DU7yj5ws7fTuy0lh2",
+      "enabled": true,
+      "responsible": "Настя С",
+      "backup": "Шамиль"
+    },
+    {
+      "id": "4cb4137d-8e2b-4f49-ba87-25443c1c54d6",
+      "name": "🎨 Custom pages _ Prod +DS",
+      "figmaUrl": "https://www.figma.com/design/LuSzmrzR94Ridz0M5MGFef/%F0%9F%8E%A8-Custom-pages-%7C-Prod--DS?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1RJEM8py0l_ZxWL3DU7yj5ws7fTuy0lh2",
+      "enabled": true,
+      "responsible": "Шамиль",
+      "backup": "Настя С"
+    },
+    {
+      "id": "3d409cac-913b-46ca-80b1-a0b55f8da7d1",
+      "name": "🏆 Турниры",
+      "figmaUrl": "https://www.figma.com/design/6UQwxnbzFdBw6gzc51MhRM/%F0%9F%8F%86-%D0%A2%D1%83%D1%80%D0%BD%D0%B8%D1%80%D1%8B?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1RJEM8py0l_ZxWL3DU7yj5ws7fTuy0lh2",
+      "enabled": true,
+      "responsible": "Шамиль",
+      "backup": "Настя С"
+    },
+    {
+      "id": "a5f914b7-5433-41b3-8e3d-25f515638260",
+      "name": "🧩 Реферальная программа",
+      "figmaUrl": "https://www.figma.com/design/T5s8k1Rw4mG6WJfCUW2lvO/%F0%9F%A7%A9-%D0%A0%D0%B5%D1%84%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D0%B0%D1%8F-%D0%BF%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D0%B0?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1RJEM8py0l_ZxWL3DU7yj5ws7fTuy0lh2",
+      "enabled": true,
+      "responsible": "Шамиль",
+      "backup": "Настя С"
+    },
+    {
+      "id": "34a508fe-e435-43d6-9321-fc00161ff293",
+      "name": "🧿 Колесо Фортуны (kz)",
+      "figmaUrl": "https://www.figma.com/design/fdWIbojTs9IPcgHJzhdz2u/%F0%9F%A7%BF-%D0%9A%D0%BE%D0%BB%D0%B5%D1%81%D0%BE-%D0%A4%D0%BE%D1%80%D1%82%D1%83%D0%BD%D1%8B--kz-?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1RJEM8py0l_ZxWL3DU7yj5ws7fTuy0lh2",
+      "enabled": true,
+      "responsible": "Настя С",
+      "backup": "Шамиль"
+    },
+    {
+      "id": "8589267a-25c2-4fbb-8a9f-56831936ce68",
+      "name": "Пополнение_вывод (Web)",
+      "figmaUrl": "https://www.figma.com/design/QNd30h41GuTlpP1iaWXVzi/%D0%9F%D0%BE%D0%BF%D0%BE%D0%BB%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B2%D1%8B%D0%B2%D0%BE%D0%B4--Web-?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1RJEM8py0l_ZxWL3DU7yj5ws7fTuy0lh2",
+      "enabled": true,
+      "responsible": "Настя С",
+      "backup": "Шамиль"
+    },
+    {
+      "id": "b8678a92-97bc-4f91-902c-31c1a133903e",
+      "name": "🏆 Турниры NEW",
+      "figmaUrl": "https://www.figma.com/design/3R9bbKF5yWCNeW7sE72h4N/%F0%9F%8F%86-%D0%A2%D1%83%D1%80%D0%BD%D0%B8%D1%80%D1%8B-NEW?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1DiQYPlZ93jidcXbY1SFpC-kHCh_SYCbF",
+      "enabled": true,
+      "responsible": "Шамиль",
+      "backup": "Настя С"
+    },
+    {
+      "id": "4abc2c99-2845-410a-ae26-f12267b5e210",
+      "name": "🎨 Custom pages | Prod +DS NEW",
+      "figmaUrl": "https://www.figma.com/design/r6NalQk6H57G54rAL0F0aR/%F0%9F%8E%A8-Custom-pages-%7C-Prod--DS-NEW?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1DiQYPlZ93jidcXbY1SFpC-kHCh_SYCbF",
+      "enabled": true,
+      "responsible": "Шамиль",
+      "backup": "Настя С"
+    },
+    {
+      "id": "65336331-eeed-4ba4-bf5f-960308bf0fae",
+      "name": "🧩 Реферальная программа NEW",
+      "figmaUrl": "https://www.figma.com/design/H40ULmqcjDVumD9iajJV5u/%F0%9F%A7%A9-%D0%A0%D0%B5%D1%84%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D0%B0%D1%8F-%D0%BF%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D0%B0-NEW?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1DiQYPlZ93jidcXbY1SFpC-kHCh_SYCbF",
+      "enabled": true,
+      "responsible": "Шамиль",
+      "backup": "Настя С"
+    },
+    {
+      "id": "6e9e7991-97cc-422d-a505-1830abddbcb0",
+      "name": "🧿 Колесо Фортуны (kz) NEW",
+      "figmaUrl": "https://www.figma.com/design/ucOs0X4Sgk16pXm1CEhYMx/%F0%9F%A7%BF-%D0%9A%D0%BE%D0%BB%D0%B5%D1%81%D0%BE-%D0%A4%D0%BE%D1%80%D1%82%D1%83%D0%BD%D1%8B--kz--NEW?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1DiQYPlZ93jidcXbY1SFpC-kHCh_SYCbF",
+      "enabled": true,
+      "responsible": "Настя С",
+      "backup": "Шамиль"
+    },
+    {
+      "id": "2866b8fb-0687-419d-af20-296b8b982e2d",
+      "name": "🎄Happy New Year NEW",
+      "figmaUrl": "https://www.figma.com/design/CVE0kNdVhzGqHJZK8VFKpS/%F0%9F%8E%84Happy-New-Year-NEW?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1DiQYPlZ93jidcXbY1SFpC-kHCh_SYCbF",
+      "enabled": true,
+      "responsible": "Настя С",
+      "backup": "Шамиль"
+    },
+    {
+      "id": "78c12662-9c0e-40d8-8e0b-548bd2c5d734",
+      "name": "Пополнение/вывод (Web) NEW",
+      "figmaUrl": "https://www.figma.com/design/jvTyr8V7gRLKnuZVuCnDjN/%D0%9F%D0%BE%D0%BF%D0%BE%D0%BB%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B2%D1%8B%D0%B2%D0%BE%D0%B4--Web--NEW?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1DiQYPlZ93jidcXbY1SFpC-kHCh_SYCbF",
+      "enabled": true,
+      "responsible": "Настя С",
+      "backup": "Шамиль"
+    },
+    {
+      "id": "9fc13bfb-4380-4873-8f1f-1513b9241a84",
+      "name": "Каталог истории изменений",
+      "figmaUrl": "https://www.figma.com/design/zsBSpcPaJUnvGZTCu1zeuF/%D0%9A%D0%B0%D1%82%D0%B0%D0%BB%D0%BE%D0%B3-%D0%B8%D1%81%D1%82%D0%BE%D1%80%D0%B8%D0%B8-%D0%B8%D0%B7%D0%BC%D0%B5%D0%BD%D0%B5%D0%BD%D0%B8%D0%B9?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1GLJrcO5-6CsHQnC6d6rcD5jkqUKjFa8E",
+      "enabled": true,
+      "responsible": "Софа",
+      "backup": "Таня С"
+    },
+    {
+      "id": "2ab7bbcc-f925-45b8-8775-90675029021a",
+      "name": "Отличия в решениях Bet от KZ(Com)",
+      "figmaUrl": "https://www.figma.com/design/cH3is0pydQKOnf7CbBZbWQ/%D0%9E%D1%82%D0%BB%D0%B8%D1%87%D0%B8%D1%8F-%D0%B2-%D1%80%D0%B5%D1%88%D0%B5%D0%BD%D0%B8%D1%8F%D1%85-Bet-%D0%BE%D1%82-KZ-Com-?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1GLJrcO5-6CsHQnC6d6rcD5jkqUKjFa8E",
+      "enabled": true,
+      "responsible": "Софа",
+      "backup": "Таня С"
+    },
+    {
+      "id": "bb56f1bd-2b01-4eba-a623-2b8ebb46e95d",
+      "name": "Сомнительные продуктовые решения",
+      "figmaUrl": "https://www.figma.com/design/IDocpGCHGiro7CGfNJDR77/%D0%A1%D0%BE%D0%BC%D0%BD%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5-%D0%BF%D1%80%D0%BE%D0%B4%D1%83%D0%BA%D1%82%D0%BE%D0%B2%D1%8B%D0%B5-%D1%80%D0%B5%D1%88%D0%B5%D0%BD%D0%B8%D1%8F?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1GLJrcO5-6CsHQnC6d6rcD5jkqUKjFa8E",
+      "enabled": true,
+      "responsible": "Софа",
+      "backup": "Таня С"
+    },
+    {
+      "id": "90e9b76c-7db4-4725-beb7-e70cfb223ef2",
+      "name": "NEW Olimp Marketing (AGG)",
+      "figmaUrl": "https://www.figma.com/design/cmqAXKgLqlXAKr4OnFzeZL/NEW-Olimp-Marketing--AGG-?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1lUPcqCGPtruS3dkknD3mXuoKCL35RRzr",
+      "enabled": true,
+      "responsible": "Таня Б",
+      "backup": "Оля Л"
+    },
+    {
+      "id": "5b62672f-aa57-4e33-9519-e75872bf44b5",
+      "name": "Olymp Casino (AGG)",
+      "figmaUrl": "https://www.figma.com/design/KUJF9wBLfQrwhPNMDg0C7v/Olymp-Casino--AGG-?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1eYehOeWhx_bVRq0aQ84aOWKjR-GVBQkd",
+      "enabled": true,
+      "responsible": "Оля Л",
       "backup": "Таня Б"
     },
     {
-      "id": "49152a39-36b9-4f9b-bdbf-5321fa5fdaf0",
-      "name": "папрапа",
-      "figmaUrl": "https://lottiefiles.com/preview",
-      "driveFolderUrl": "https://lottiefiles.com/preview",
-      "enabled": false,
+      "id": "d46d69b6-1016-417b-a79b-19a2ff783fe0",
+      "name": "Releazio Posts",
+      "figmaUrl": "https://www.figma.com/design/GP0pL8GqfaGX7WNM5h9zEv/Releazio-Posts?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1gyEmTekKPv57zNtS3St90msLu7b5if_i",
+      "enabled": true,
       "responsible": "Таня Б",
-      "backup": "Таня С"
+      "backup": "Настя Е"
+    },
+    {
+      "id": "833bae2c-da22-49be-ad56-f934492a244c",
+      "name": "Releazio shadcn",
+      "figmaUrl": "https://www.figma.com/design/vXrC3DrlVtKhnHbtZhWYHR/Releazio-shadcn?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1gyEmTekKPv57zNtS3St90msLu7b5if_i",
+      "enabled": true,
+      "responsible": "Настя Е",
+      "backup": "Оля Л"
+    },
+    {
+      "id": "94091639-f090-48e7-9f6d-7397fe471147",
+      "name": "Olimp Casino Slots",
+      "figmaUrl": "https://www.figma.com/design/HPZLDNBZ8MhewnWO5sjeLg/Olimp-Casino-Slots?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1TrVX6IwFL69kqlVzMTQB_2x_4mvjaV1e",
+      "enabled": true,
+      "responsible": "Оля Л",
+      "backup": "Таня Б"
+    },
+    {
+      "id": "369b8134-3732-4584-ab4b-3e4800742272",
+      "name": "Sport + TV",
+      "figmaUrl": "https://www.figma.com/design/AeTTkvlB4UMWQ5s2WUcDsm/Sport---TV?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1YE-NAEEn7BkfnD7Aj2O-g4fcqGeuyP9P",
+      "enabled": true,
+      "responsible": "Настя Е",
+      "backup": "Софа"
+    },
+    {
+      "id": "e87f48af-0540-496d-a12b-96ef758ca22a",
+      "name": "Suetology (AGG)",
+      "figmaUrl": "https://www.figma.com/design/TPg5ptF2XAGt1mLhoNbhPZ/Suetology--AGG-?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1ZnfFmdp0rgiMOQM0jL0xGecCR-e7CWoC",
+      "enabled": true,
+      "responsible": "Таня Б",
+      "backup": "Оля Л"
+    },
+    {
+      "id": "23877f04-85ed-42ac-ad29-6eb5a632a15b",
+      "name": "VPoker",
+      "figmaUrl": "https://www.figma.com/design/O3FiBOO3XW0qnh4I9Kvnmc/VPoker?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1LD8zN13ctJFLjYu1MHE7kb91m_ZDGXAx",
+      "enabled": true,
+      "responsible": "Таня Б",
+      "backup": "Туран"
+    },
+    {
+      "id": "0fdb852d-7fd5-467f-a6a7-4dfbeba591c8",
+      "name": "VPoker (Hero UI)",
+      "figmaUrl": "https://www.figma.com/design/Dvax2MdeN1QDWztyVPGvjq/VPoker--Hero-UI-?m=auto&t=flFXu3sMJG1rRh5y-6",
+      "driveFolderUrl": "https://drive.google.com/drive/folders/1LD8zN13ctJFLjYu1MHE7kb91m_ZDGXAx",
+      "enabled": true,
+      "responsible": "Таня Б",
+      "backup": "Софа"
     }
   ]
 }
