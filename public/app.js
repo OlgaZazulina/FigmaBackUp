@@ -223,7 +223,11 @@ function updateBackupButton() {
   const btn = $('#btn-backup');
   if (!btn) return;
   const count = getBackupCandidateIds().length;
-  btn.textContent = count > 0 ? `Сделать бэкап (${count})` : 'Сделать бэкап';
+  if (backupInProgress) {
+    btn.innerHTML = 'Бэкаплю<span class="backup-btn-dots" aria-hidden="true"></span>';
+  } else {
+    btn.textContent = count > 0 ? `Сделать бэкап (${count})` : 'Сделать бэкап';
+  }
   btn.disabled = !authReady || backupInProgress || count === 0;
 }
 
