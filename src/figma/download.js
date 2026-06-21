@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const logger = require('../logger');
+const { sanitizeLinkName } = require('../backup/fig-filename');
 const { waitForDownloadResult } = require('./download-wait');
 
 const EXPORT_TIMEOUT_MS = 30 * 60 * 1000;
@@ -80,19 +81,27 @@ async function triggerSaveLocalCopy(page) {
   return waitForDownloadResult(page, clickSaveLocalCopy);
 }
 
-async function saveDownloadResult(result, destDir, page) {
-  let baseName = path.basename(result.path, '.fig');
+async function saveDownloadResult(result, destDir, page, linkName) {
+  let baseName = linkName ? sanitizeLinkName(linkName) : '';
 
   if (!baseName) {
-    const title = await page.title();
-    baseName = title.replace(/\s*[–—-]\s*Figma.*$/i, '').trim();
+    baseName = path.basename(result.path, '.fig');
+    if (!baseName) {
+      const title = await page.title();
+      baseName = title.replace(/\s*[–—-]\s*Figma.*$/i, '').trim();
+    }
+  } else {
+    const figmaName = path.basename(result.path, '.fig');
+    if (figmaName && figmaName !== baseName) {
+      logger.info(`Имя файла: «${baseName}.fig» (из таблицы, Figma: «${figmaName}.fig»)`);
+    }
   }
+
   if (!baseName) {
     throw new Error('Не удалось определить имя файла');
   }
 
-  const safeName = baseName.replace(/[/\\?%*:|"<>]/g, '-');
-  const destPath = path.join(destDir, `${safeName}.fig`);
+  const destPath = path.join(destDir, `${baseName}.fig`);
 
   fs.copyFileSync(result.path, destPath);
 
@@ -100,10 +109,10 @@ async function saveDownloadResult(result, destDir, page) {
     throw new Error('Файл .fig не был сохранён');
   }
 
-  return { fileName: safeName, destPath };
+  return { fileName: baseName, destPath };
 }
 
-async function downloadFigmaFileWithContext(context, figmaUrl, destDir) {
+async function downloadFigmaFileWithContext(context, figmaUrl, destDir, linkName = null) {
   const page = await context.newPage();
   const cleanUrl = normalizeFigmaUrl(figmaUrl);
 
@@ -113,7 +122,7 @@ async function downloadFigmaFileWithContext(context, figmaUrl, destDir) {
     await waitForEditorReady(page);
 
     const result = await triggerSaveLocalCopy(page);
-    return await saveDownloadResult(result, destDir, page);
+    return await saveDownloadResult(result, destDir, page, linkName);
   } finally {
     await page.close().catch(() => {});
   }

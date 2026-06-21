@@ -1,10 +1,16 @@
 const fs = require('fs');
 const path = require('path');
-const { getEnabledLinks } = require('../store/links');
+const { getEnabledLinks, getEnabledLinksByIds } = require('../store/links');
 const { BACKUP_DIR } = require('../store/paths');
 const { acquireContext, ensureLiveContext } = require('../playwright/chrome-manager');
 const { downloadFigmaFileWithContext } = require('../figma/download');
 const { uploadToDriveFolderWithContext } = require('../drive/upload');
+const { getDriveFileInfoWithContext } = require('../drive/file-info');
+const {
+  expectedFigFileName,
+  shouldSkipUpload,
+  formatSkipDateLabel,
+} = require('./fig-filename');
 const logger = require('../logger');
 
 function makeTimestampDir() {
@@ -25,11 +31,31 @@ function makeTimestampDir() {
   return dir;
 }
 
-async function runBackup() {
-  const enabledLinks = getEnabledLinks();
+function logBackupSummary(uploaded, skipped, errors) {
+  logger.info('Итог бэкапа:');
+  if (uploaded.length) {
+    logger.info(`Загружены (${uploaded.length}): ${uploaded.map((x) => `«${x.name}»`).join(', ')}`);
+  } else {
+    logger.info('Загружены (0): нет');
+  }
+  if (skipped.length) {
+    const list = skipped.map((x) => `«${x.name}» (${formatSkipDateLabel(x.modifiedAt)})`).join(', ');
+    logger.info(`Пропущены (${skipped.length}): ${list}`);
+  } else {
+    logger.info('Пропущены (0): нет');
+  }
+  if (errors.length) {
+    logger.info(`Ошибки (${errors.length}): ${errors.map((x) => `«${x.name}» — ${x.message}`).join('; ')}`);
+  }
+}
+
+async function runBackup(linkIds = null, { force = false } = {}) {
+  const enabledLinks = linkIds && linkIds.length > 0
+    ? getEnabledLinksByIds(linkIds)
+    : getEnabledLinks();
   if (enabledLinks.length === 0) {
     logger.info('Нет включённых ссылок для бэкапа');
-    return { success: 0, errors: 0 };
+    return { uploaded: [], skipped: [], errors: [] };
   }
 
   const backupDir = makeTimestampDir();
@@ -37,38 +63,69 @@ async function runBackup() {
   logger.info(`Начинаю бэкап ${enabledLinks.length} файл(ов)...`);
 
   const chrome = await acquireContext();
-
-  let success = 0;
-  let errors = 0;
+  const uploaded = [];
+  const skipped = [];
+  const errors = [];
 
   try {
     for (const link of enabledLinks) {
       try {
+        const driveFileName = expectedFigFileName(link.name);
+
+        if (!force) {
+          logger.info(`Проверяю дату «${driveFileName}» на Drive...`);
+          const liveContext = await ensureLiveContext();
+          const info = await getDriveFileInfoWithContext(
+            liveContext,
+            link.driveFolderUrl,
+            driveFileName,
+          );
+
+          if (info.exists && info.modifiedAt && shouldSkipUpload(info.modifiedAt)) {
+            const label = formatSkipDateLabel(info.modifiedAt);
+            logger.info(`«${link.name}» — пропущен: на Drive обновлён ${label}`);
+            skipped.push({ name: link.name, modifiedAt: info.modifiedAt });
+            continue;
+          }
+          if (info.exists && !info.modifiedAt) {
+            logger.info(`«${link.name}» — дата не распознана, выполняю загрузку`);
+          }
+          if (!info.exists) {
+            logger.info(`«${link.name}» — файл не найден на Drive, выполняю загрузку`);
+          }
+        } else {
+          logger.info(`«${link.name}» — принудительная загрузка (проверка даты пропущена)`);
+        }
+
         logger.info(`Скачиваю «${link.name}» из Figma...`);
-        const { destPath, fileName } = await downloadFigmaFileWithContext(
+        const { destPath } = await downloadFigmaFileWithContext(
           chrome.context,
           link.figmaUrl,
           backupDir,
+          link.name,
         );
+        if (path.basename(destPath) !== driveFileName) {
+          throw new Error(`Имя файла «${path.basename(destPath)}» не совпадает с таблицей «${driveFileName}»`);
+        }
         logger.info(`Сохранено локально: ${destPath}`);
 
-        logger.info(`Загружаю «${fileName}» в Google Drive...`);
-        const liveContext = await ensureLiveContext();
-        await uploadToDriveFolderWithContext(liveContext, link.driveFolderUrl, destPath);
+        logger.info(`Загружаю «${driveFileName}» в Google Drive...`);
+        const uploadContext = await ensureLiveContext();
+        await uploadToDriveFolderWithContext(uploadContext, link.driveFolderUrl, destPath);
 
         logger.success(`«${link.name}» — готово`);
-        success++;
+        uploaded.push({ name: link.name });
       } catch (err) {
         logger.error(`«${link.name}» — ${err.message}`);
-        errors++;
+        errors.push({ name: link.name, message: err.message });
       }
     }
   } finally {
     await chrome.release();
   }
 
-  logger.info(`Бэкап завершён: ${success} успешно, ${errors} ошибок`);
-  return { success, errors };
+  logBackupSummary(uploaded, skipped, errors);
+  return { uploaded, skipped, errors };
 }
 
 module.exports = { runBackup };

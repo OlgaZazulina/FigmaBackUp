@@ -2,38 +2,48 @@
   "links": [
     {
       "id": "8acb01dc-8031-4245-8ba0-f10d837af013",
-      "name": "FakeApp2",
+      "name": "FakeApps 2 (AGG)",
       "figmaUrl": "https://www.figma.com/design/posnoNJyTnFt58DfCnhd2B/FakeApps-2--AGG-?m=auto&t=MeqqBtjshC1Kwcie-6",
       "driveFolderUrl": "https://drive.google.com/drive/folders/1si3PyrRdEDlQXGBVBB-E8BmC8sONKCWs",
-      "enabled": true
+      "enabled": true,
+      "responsible": "Софа",
+      "backup": "Шамиль"
     },
     {
       "id": "4bcaa6e4-2d1f-4cef-bd5c-6c3038122a93",
       "name": "BroBroCasino",
       "figmaUrl": "https://www.figma.com/design/1h2w7FvVTw43uxyrq8b4dG/BroBroCasino?m=auto&t=QLxb1ITnY6OWTuXl-6",
       "driveFolderUrl": "https://drive.google.com/drive/folders/1XiEj2271ZEzCFbjX8slJ-ISGwAcEIDoO?usp=drive_link",
-      "enabled": true
+      "enabled": false,
+      "responsible": "Шамиль",
+      "backup": "Настя С"
     },
     {
       "id": "cfd60c6c-9f9e-420d-a9e6-ad973e07dbca",
       "name": "вавыавы",
       "figmaUrl": "https://lottiefiles.com/preview",
       "driveFolderUrl": "https://lottiefiles.com/preview",
-      "enabled": true
+      "enabled": false,
+      "responsible": "Настя С",
+      "backup": "Настя Е"
     },
     {
       "id": "ac1465ea-a9ca-486e-b9e8-8e4835aa584e",
       "name": "пвававыа",
       "figmaUrl": "https://lottiefiles.com/preview",
       "driveFolderUrl": "https://lottiefiles.com/preview",
-      "enabled": true
+      "enabled": false,
+      "responsible": "Настя Е",
+      "backup": "Таня Б"
     },
     {
       "id": "49152a39-36b9-4f9b-bdbf-5321fa5fdaf0",
       "name": "папрапа",
       "figmaUrl": "https://lottiefiles.com/preview",
       "driveFolderUrl": "https://lottiefiles.com/preview",
-      "enabled": true
+      "enabled": false,
+      "responsible": "Таня Б",
+      "backup": "Таня С"
     }
   ]
 }

@@ -1,0 +1,108 @@
+<h2>Размер и позиция кота</h2>
+<p class="subtitle">Кот фиксирован в правом нижнем углу, поверх интерфейса. Кликните вариант, который ближе к задумке.</p>
+
+<style>
+  .preview-frame {
+    position: relative;
+    height: 220px;
+    background: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 12px;
+  }
+  .preview-ui {
+    position: absolute;
+    inset: 12px 12px 48px 12px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    padding: 10px;
+  }
+  .preview-ui .bar { height: 8px; background: #e8eaed; border-radius: 4px; margin-bottom: 6px; }
+  .preview-ui .bar.short { width: 60%; }
+  .preview-cat {
+    position: absolute;
+    right: 8px;
+    bottom: 0;
+    background: linear-gradient(135deg, #ffbb4d 0%, #ff9500 100%);
+    border-radius: 40% 40% 20% 20%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .preview-cat::before {
+    content: '🐱';
+    font-size: 0.55em;
+  }
+  .size-s { width: 90px; height: 52px; font-size: 28px; }
+  .size-m { width: 140px; height: 72px; font-size: 36px; }
+  .size-l { width: 200px; height: 96px; font-size: 44px; right: 0; }
+  .size-label {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #666;
+  }
+</style>
+
+<div class="cards">
+  <div class="card" data-choice="small" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="preview-frame">
+        <div class="preview-ui">
+          <div class="bar"></div>
+          <div class="bar short"></div>
+          <div class="bar"></div>
+        </div>
+        <div class="preview-cat size-s"></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Компактный (~120px)</h3>
+      <p>Ненавязчивый акцент. Не перекрывает таблицу и лог. Бабл появляется над котом.</p>
+      <span class="size-label">≈ 120 × 50 px</span>
+    </div>
+  </div>
+
+  <div class="card" data-choice="medium" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="preview-frame">
+        <div class="preview-ui">
+          <div class="bar"></div>
+          <div class="bar short"></div>
+          <div class="bar"></div>
+        </div>
+        <div class="preview-cat size-m"></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Средний (~180px) — рекомендую</h3>
+      <p>Хорошо видна анимация «игры с мячом». Всё ещё не мешает основному UI.</p>
+      <span class="size-label">≈ 180 × 75 px</span>
+    </div>
+  </div>
+
+  <div class="card" data-choice="large" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="preview-frame">
+        <div class="preview-ui">
+          <div class="bar"></div>
+          <div class="bar short"></div>
+          <div class="bar"></div>
+        </div>
+        <div class="preview-cat size-l"></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Крупный (~260px)</h3>
+      <p>Максимально заметный персонаж. Может частично перекрывать нижние строки таблицы.</p>
+      <span class="size-label">≈ 260 × 110 px</span>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top: 16px;">Оригинал анимации — 1070×456 px (широкий формат). При масштабировании сохраняем пропорции.</p>

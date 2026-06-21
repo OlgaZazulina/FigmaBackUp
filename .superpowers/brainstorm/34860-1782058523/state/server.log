@@ -1,0 +1,5 @@
+{"type":"server-started","port":57568,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:57568","screen_dir":"/Users/olgaz/cursor/figmaBackUp/.superpowers/brainstorm/34860-1782058523/content","state_dir":"/Users/olgaz/cursor/figmaBackUp/.superpowers/brainstorm/34860-1782058523/state"}
+fs.watch error: EMFILE: too many open files, watch
+{"source":"user-event","type":"click","text":"A — Компактный (120px)\n        Ненавязчивый. Не перекрывает таблицу.\n        120 × 51 px","choice":"small","id":null,"timestamp":1782058567023}
+{"source":"user-event","type":"click","text":"B — Средний (180px) — рекомендую\n        Анимация хорошо читается, UI не страдает.\n        180 × 77 px","choice":"medium","id":null,"timestamp":1782058568631}
+{"type":"server-stopped","reason":"owner process exited"}

@@ -52,6 +52,27 @@
           Добавить ссылку
         </button>
       </div>
+      <div class="links-filters" id="links-filters">
+        <div class="filter-field">
+          <div class="designer-dropdown" id="filter-dropdown-designer">
+            <button type="button" class="designer-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false">
+              <span class="designer-dropdown-value is-placeholder"><img class="designer-avatar" src="/avatars/Default.png" width="24" height="24" alt=""><span class="designer-dropdown-name">Все дизайнеры</span></span>
+              <span class="designer-dropdown-chevron" aria-hidden="true"></span>
+            </button>
+            <ul class="designer-dropdown-menu hidden" role="listbox" aria-label="Фильтр по дизайнеру"></ul>
+          </div>
+        </div>
+        <label class="filter-checkbox">
+          <input type="checkbox" id="filter-responsible-only" disabled>
+          <span>Только Ответственный</span>
+        </label>
+        <button type="button" id="btn-filter-reset" class="filter-reset-link hidden">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+          Сбросить
+        </button>
+      </div>
       <table id="links-table">
         <thead>
           <tr>
@@ -59,8 +80,10 @@
             <th class="col-check">
               <input type="checkbox" id="toggle-all" aria-label="Выбрать все" title="Выбрать все">
             </th>
-            <th>Название</th>
+            <th class="col-name">Название</th>
             <th class="col-links">Ссылки</th>
+            <th class="col-designer">Ответственный</th>
+            <th class="col-designer">Страхующий</th>
             <th class="col-actions">Действия</th>
           </tr>
         </thead>
@@ -98,6 +121,29 @@
           Папка Google Drive
           <input type="url" id="input-drive" placeholder="https://drive.google.com/drive/folders/..." required>
         </label>
+        <label>
+          Ответственный
+          <div class="designer-dropdown" id="dropdown-responsible">
+            <input type="hidden" id="input-responsible" required>
+            <button type="button" class="designer-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false">
+              <span class="designer-dropdown-value is-placeholder">Выберите...</span>
+              <span class="designer-dropdown-chevron" aria-hidden="true"></span>
+            </button>
+            <ul class="designer-dropdown-menu hidden" role="listbox" aria-label="Ответственный"></ul>
+          </div>
+        </label>
+        <label>
+          Страхующий
+          <div class="designer-dropdown" id="dropdown-backup">
+            <input type="hidden" id="input-backup" required>
+            <button type="button" class="designer-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false">
+              <span class="designer-dropdown-value is-placeholder">Выберите...</span>
+              <span class="designer-dropdown-chevron" aria-hidden="true"></span>
+            </button>
+            <ul class="designer-dropdown-menu hidden" role="listbox" aria-label="Страхующий"></ul>
+          </div>
+        </label>
+        <p id="designer-error" class="designer-error hidden">Ответственный и страхующий должны быть разными</p>
         <div class="modal-actions">
           <button type="button" class="btn-secondary" data-close-modal>Отмена</button>
           <button type="submit" class="btn-primary" id="btn-modal-save">Сохранить</button>
@@ -121,6 +167,13 @@
     </div>
   </div>
 
+  <div id="backup-cat" class="backup-cat" aria-hidden="true">
+    <div class="backup-cat-bubble designer-name" role="tooltip"></div>
+    <div class="backup-cat-lottie" id="backup-cat-lottie"></div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <script src="/cat-mascot.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

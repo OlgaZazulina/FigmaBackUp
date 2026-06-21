@@ -1,6 +1,7 @@
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { LINKS_FILE } = require('./paths');
+const { validateDesignerPair, defaultDesignerPair } = require('./designers');
 
 let linksFile = LINKS_FILE;
 
@@ -12,11 +13,31 @@ function readData() {
   if (!fs.existsSync(linksFile)) {
     return { links: [] };
   }
-  return JSON.parse(fs.readFileSync(linksFile, 'utf8'));
+  const data = JSON.parse(fs.readFileSync(linksFile, 'utf8'));
+  return ensureDesignerFields(data);
 }
 
 function writeData(data) {
   fs.writeFileSync(linksFile, JSON.stringify(data, null, 2));
+}
+
+function ensureDesignerFields(data) {
+  let changed = false;
+  const links = data.links.map((link, index) => {
+    if (link.responsible && link.backup && !validateDesignerPair(link.responsible, link.backup)) {
+      return link;
+    }
+
+    changed = true;
+    const pair = defaultDesignerPair(index);
+    return { ...link, ...pair };
+  });
+
+  if (changed) {
+    writeData({ links });
+    return { links };
+  }
+  return data;
 }
 
 function getLinks() {
@@ -27,17 +48,26 @@ function getEnabledLinks() {
   return getLinks().filter((l) => l.enabled);
 }
 
+function getEnabledLinksByIds(ids) {
+  const byId = new Map(getLinks().map((l) => [l.id, l]));
+  return ids.map((id) => byId.get(id)).filter((l) => l && l.enabled);
+}
+
 function getLinkById(id) {
   return getLinks().find((l) => l.id === id) || null;
 }
 
-function addLink({ name, figmaUrl, driveFolderUrl }) {
+function addLink({ name, figmaUrl, driveFolderUrl, responsible, backup }) {
+  if (validateDesignerPair(responsible, backup)) return null;
+
   const data = readData();
   const link = {
     id: uuidv4(),
     name: name.trim(),
     figmaUrl: figmaUrl.trim(),
     driveFolderUrl: driveFolderUrl.trim(),
+    responsible,
+    backup,
     enabled: true,
   };
   data.links.push(link);
@@ -49,7 +79,11 @@ function updateLink(id, updates) {
   const data = readData();
   const index = data.links.findIndex((l) => l.id === id);
   if (index === -1) return null;
-  data.links[index] = { ...data.links[index], ...updates };
+
+  const next = { ...data.links[index], ...updates };
+  if (validateDesignerPair(next.responsible, next.backup)) return null;
+
+  data.links[index] = next;
   writeData(data);
   return data.links[index];
 }
@@ -90,6 +124,7 @@ function reorderLinks(ids) {
 module.exports = {
   getLinks,
   getEnabledLinks,
+  getEnabledLinksByIds,
   getLinkById,
   addLink,
   updateLink,

@@ -1,5 +1,6 @@
 const express = require('express');
 const links = require('./store/links');
+const { DESIGNERS, validateDesignerPair } = require('./store/designers');
 const { getAuthStatus, resetAuthState } = require('./store/auth-state');
 const { resetBrowserProfiles } = require('./playwright/chrome-manager');
 const logger = require('./logger');
@@ -23,12 +24,21 @@ function createServer(port) {
     res.json({ links: links.getLinks() });
   });
 
+  app.get('/api/designers', (_req, res) => {
+    res.json({ designers: DESIGNERS });
+  });
+
   app.post('/api/links', (req, res) => {
-    const { name, figmaUrl, driveFolderUrl } = req.body;
+    const { name, figmaUrl, driveFolderUrl, responsible, backup } = req.body;
     if (!name || !figmaUrl || !driveFolderUrl) {
       return res.status(400).json({ error: 'Заполните все поля' });
     }
-    const link = links.addLink({ name, figmaUrl, driveFolderUrl });
+    const designerError = validateDesignerPair(responsible, backup);
+    if (designerError) {
+      return res.status(400).json({ error: designerError });
+    }
+    const link = links.addLink({ name, figmaUrl, driveFolderUrl, responsible, backup });
+    if (!link) return res.status(400).json({ error: 'Не удалось добавить ссылку' });
     res.status(201).json(link);
   });
 
@@ -45,6 +55,15 @@ function createServer(port) {
   });
 
   app.put('/api/links/:id', (req, res) => {
+    const existing = links.getLinkById(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Ссылка не найдена' });
+
+    const next = { ...existing, ...req.body };
+    const designerError = validateDesignerPair(next.responsible, next.backup);
+    if (designerError) {
+      return res.status(400).json({ error: designerError });
+    }
+
     const updated = links.updateLink(req.params.id, req.body);
     if (!updated) return res.status(404).json({ error: 'Ссылка не найдена' });
     res.json(updated);
@@ -57,7 +76,7 @@ function createServer(port) {
   });
 
   app.get('/api/auth/status', (_req, res) => {
-    res.json(getAuthStatus());
+    res.json({ ...getAuthStatus(), backupRunning });
   });
 
   app.post('/api/auth/figma', async (_req, res) => {
@@ -83,7 +102,7 @@ function createServer(port) {
     }
   });
 
-  app.post('/api/backup', async (_req, res) => {
+  app.post('/api/backup', async (req, res) => {
     if (backupRunning) {
       return res.status(409).json({ error: 'Бэкап уже выполняется' });
     }
@@ -91,10 +110,59 @@ function createServer(port) {
     if (!status.ready) {
       return res.status(401).json({ error: 'Сначала авторизуйтесь в Figma и Google Drive' });
     }
+
+    const { ids } = req.body || {};
+    let linkIds = null;
+    if (ids !== undefined && ids !== null) {
+      if (!Array.isArray(ids)) {
+        return res.status(400).json({ error: 'Некорректный список id' });
+      }
+      if (ids.length === 0) {
+        return res.status(400).json({ error: 'Не выбрано ни одной ссылки для бэкапа' });
+      }
+      for (const id of ids) {
+        const link = links.getLinkById(id);
+        if (!link) {
+          return res.status(400).json({ error: 'Ссылка не найдена' });
+        }
+        if (!link.enabled) {
+          return res.status(400).json({ error: `Ссылка «${link.name}» отключена` });
+        }
+      }
+      linkIds = ids;
+    }
+
     backupRunning = true;
     res.json({ ok: true, message: 'Бэкап запущен' });
 
-    runBackup()
+    runBackup(linkIds, { force: false })
+      .catch((err) => logger.error(`Критическая ошибка бэкапа: ${err.message}`))
+      .finally(() => { backupRunning = false; });
+  });
+
+  app.post('/api/links/:id/backup', async (req, res) => {
+    if (backupRunning) {
+      return res.status(409).json({ error: 'Бэкап уже выполняется' });
+    }
+    const status = getAuthStatus();
+    if (!status.ready) {
+      return res.status(401).json({ error: 'Сначала авторизуйтесь в Figma и Google Drive' });
+    }
+
+    const link = links.getLinkById(req.params.id);
+    if (!link) return res.status(404).json({ error: 'Ссылка не найдена' });
+    if (!link.enabled) {
+      return res.status(400).json({ error: 'Ссылка отключена' });
+    }
+
+    const force = !!req.body?.force;
+    backupRunning = true;
+    res.json({
+      ok: true,
+      message: force ? 'Принудительная загрузка запущена' : 'Бэкап запущен',
+    });
+
+    runBackup([link.id], { force })
       .catch((err) => logger.error(`Критическая ошибка бэкапа: ${err.message}`))
       .finally(() => { backupRunning = false; });
   });

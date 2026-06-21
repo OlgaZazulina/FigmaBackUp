@@ -4,7 +4,8 @@
   "description": "Backup Figma .fig files to local folder and Google Drive",
   "main": "start.js",
   "scripts": {
-    "start": "node start.js"
+    "start": "node start.js",
+    "test": "node --test src/**/*.test.js"
   },
   "dependencies": {
     "express": "^4.21.0",
