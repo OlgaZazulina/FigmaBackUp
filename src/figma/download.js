@@ -3,9 +3,27 @@ const path = require('path');
 const logger = require('../logger');
 const { sanitizeLinkName } = require('../backup/fig-filename');
 const { waitForDownloadResult } = require('./download-wait');
+const { throwIfBackupCancelled } = require('../backup/cancel');
+const { ensureLiveContext } = require('../playwright/chrome-manager');
 
 const EXPORT_TIMEOUT_MS = 30 * 60 * 1000;
 const NAV_TIMEOUT_MS = 90_000;
+
+function isContextClosedError(err) {
+  return /closed|detached|destroyed|crashed/i.test(err?.message || '');
+}
+
+async function withContextReconnect(context, operation) {
+  try {
+    return await operation(context);
+  } catch (err) {
+    if (!isContextClosedError(err)) throw err;
+    logger.info('Соединение с Chrome потеряно — восстанавливаю...');
+    const liveContext = await ensureLiveContext();
+    logger.info('Соединение с Chrome восстановлено');
+    return operation(liveContext);
+  }
+}
 
 function normalizeFigmaUrl(url) {
   const match = url.match(/figma\.com\/(design|file|board|proto)\/([a-zA-Z0-9]+)/i);
@@ -113,19 +131,24 @@ async function saveDownloadResult(result, destDir, page, linkName) {
 }
 
 async function downloadFigmaFileWithContext(context, figmaUrl, destDir, linkName = null) {
-  const page = await context.newPage();
   const cleanUrl = normalizeFigmaUrl(figmaUrl);
 
-  try {
-    logger.info(`Открываю: ${cleanUrl}`);
-    await page.goto(cleanUrl, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS });
-    await waitForEditorReady(page);
+  return withContextReconnect(context, async (liveContext) => {
+    const page = await liveContext.newPage();
 
-    const result = await triggerSaveLocalCopy(page);
-    return await saveDownloadResult(result, destDir, page, linkName);
-  } finally {
-    await page.close().catch(() => {});
-  }
+    try {
+      logger.info(`Открываю: ${cleanUrl}`);
+      await page.goto(cleanUrl, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS });
+      throwIfBackupCancelled();
+      await waitForEditorReady(page);
+      throwIfBackupCancelled();
+
+      const result = await triggerSaveLocalCopy(page);
+      return await saveDownloadResult(result, destDir, page, linkName);
+    } finally {
+      await page.close().catch(() => {});
+    }
+  });
 }
 
 module.exports = { downloadFigmaFileWithContext, normalizeFigmaUrl };

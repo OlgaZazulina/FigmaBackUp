@@ -1,6 +1,7 @@
 const logger = require('../logger');
 
 const LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
+const SESSION_RETRY_MS = 30_000;
 
 function isLoginUrl(url) {
   return url.includes('accounts.google.com')
@@ -45,7 +46,18 @@ async function waitForGoogleDriveLogin(page, timeoutMs = LOGIN_TIMEOUT_MS) {
   throw new Error('Время ожидания входа в Google Drive истекло');
 }
 
-async function assertLoggedInToDrive(page) {
+async function assertLoggedInToDrive(page, { retryMs = SESSION_RETRY_MS } = {}) {
+  const deadline = Date.now() + retryMs;
+
+  while (Date.now() < deadline) {
+    if (await isLoggedInToDrive(page)) return;
+
+    const url = page.url();
+    if (isLoginUrl(url)) break;
+
+    await page.waitForTimeout(1000);
+  }
+
   if (!(await isLoggedInToDrive(page))) {
     throw new Error(
       'Google Drive: сессия не найдена. Сначала нажмите «Войти в Google Drive» и не закрывайте окно Chrome.',

@@ -8,6 +8,7 @@ const { PUBLIC_DIR } = require('./store/paths');
 const { authenticateFigma } = require('./figma/auth');
 const { authenticateGoogle } = require('./drive/auth');
 const { runBackup } = require('./backup/orchestrator');
+const { requestBackupCancel } = require('./backup/cancel');
 
 let backupRunning = false;
 
@@ -100,6 +101,14 @@ function createServer(port) {
       logger.error(`Ошибка авторизации Google: ${err.message}`);
       res.status(500).json({ error: err.message });
     }
+  });
+
+  app.post('/api/backup/cancel', (_req, res) => {
+    if (!backupRunning) {
+      return res.status(409).json({ error: 'Бэкап не выполняется' });
+    }
+    requestBackupCancel();
+    res.json({ ok: true });
   });
 
   app.post('/api/backup', async (req, res) => {

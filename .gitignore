@@ -1,6 +1,7 @@
 node_modules/
 .chrome-profile/
 .downloads-tmp/
+.superpowers/
 backup/*
 !backup/.gitkeep
 .DS_Store

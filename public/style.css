@@ -534,7 +534,37 @@ tr.drop-after td {
   outline: none;
 }
 
-.backup-row { margin-top: 16px; }
+.backup-row {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.btn-backup-stop.hidden,
+.btn-backup-stop[hidden] {
+  display: none;
+}
+
+.btn-backup-stop {
+  padding: 10px 20px;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-danger);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-backup-stop:hover:not(:disabled) {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.btn-backup-stop:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 .actions-group { display: inline-flex; gap: 8px; justify-content: flex-end; }
 .btn-action {
@@ -663,7 +693,7 @@ tr.drop-after td {
 
 .designer-dropdown-trigger:hover,
 .designer-dropdown-trigger:focus-visible {
-  background: #f5f5f5;
+  background: var(--bg-surface-hover);
   outline: none;
 }
 
@@ -710,10 +740,10 @@ tr.drop-after td {
   margin: 0;
   padding: 6px 0;
   list-style: none;
-  background: #fff;
-  border: 1px solid #e0e0e0;
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-card);
   max-height: 240px;
   overflow-y: auto;
   z-index: 20;
@@ -731,7 +761,7 @@ tr.drop-after td {
   padding: 8px 14px;
   border: none;
   background: transparent;
-  color: #333;
+  color: var(--color-text);
   font-size: 14px;
   text-align: left;
   cursor: pointer;
@@ -743,12 +773,12 @@ tr.drop-after td {
   border-radius: var(--radius-pill);
   object-fit: cover;
   flex-shrink: 0;
-  background: #f1f3f4;
+  background: var(--bg-surface-alt);
 }
 
 .designer-dropdown-option:hover,
 .designer-dropdown-option:focus-visible {
-  background: #f5f5f5;
+  background: var(--bg-surface-hover);
   outline: none;
 }
 
@@ -788,6 +818,10 @@ tr.drop-after td {
 [data-theme="dark"] .log-panel {
   background: var(--bg-surface-alt);
   color: var(--color-text);
+}
+
+[data-theme="dark"] .designer-dropdown-menu {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 .log-entry { margin-bottom: 4px; }
 .log-entry.error { color: #f48771; }

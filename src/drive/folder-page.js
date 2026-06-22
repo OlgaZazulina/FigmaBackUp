@@ -1,5 +1,5 @@
 const { assertLoggedInToDrive } = require('./session');
-const { ensureLiveContext } = require('../playwright/chrome-manager');
+const { ensureLiveContext, forceReconnectContext } = require('../playwright/chrome-manager');
 const logger = require('../logger');
 
 function sleep(ms) {
@@ -8,6 +8,15 @@ function sleep(ms) {
 
 function isContextClosedError(err) {
   return /closed|detached|destroyed|crashed/i.test(err?.message || '');
+}
+
+function findDriveFolderPage(pages, folderId) {
+  const open = pages.filter((p) => p && !p.isClosed());
+
+  const folderMatch = open.filter((p) => p.url().includes(folderId));
+  if (folderMatch.length > 0) return folderMatch[folderMatch.length - 1];
+
+  return open.find((p) => p.url().includes('drive.google.com')) || null;
 }
 
 async function getLiveContext(context) {
@@ -31,32 +40,58 @@ async function waitForDriveFolder(page, folderId) {
   }
 }
 
-async function openTargetFolder(page, folderId, folderUrl) {
-  logger.info(`Открываю папку Drive: ${folderUrl}`);
+async function openOnFolderPage(page, folderId, folderUrl) {
   await page.goto(folderUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
   await waitForDriveFolder(page, folderId);
   logger.info(`Папка открыта: ${page.url()}`);
   await sleep(1000);
+  return page;
 }
 
-async function recoverUploadPage(context, folderId, folderUrl) {
-  const liveContext = await getLiveContext(context);
-  const alive = (p) => !p.isClosed();
+async function openTargetFolder(page, folderId, folderUrl) {
+  logger.info(`Открываю папку Drive: ${folderUrl}`);
 
-  let page = liveContext.pages().find((p) => alive(p) && p.url().includes(folderId));
-  if (page) {
+  try {
+    return await openOnFolderPage(page, folderId, folderUrl);
+  } catch (err) {
+    logger.info('Соединение с Chrome потеряно — восстанавливаю...');
+    const liveContext = await forceReconnectContext();
+
+    let recoveredPage = findDriveFolderPage(liveContext.pages(), folderId);
+    if (!recoveredPage) {
+      const drivePage = liveContext.pages().find(
+        (p) => !p.isClosed() && p.url().includes('drive.google.com'),
+      );
+      recoveredPage = drivePage || await liveContext.newPage();
+    }
+
+    const result = await openOnFolderPage(recoveredPage, folderId, folderUrl);
+    logger.info('Соединение с Chrome восстановлено');
+    return result;
+  }
+}
+
+async function recoverUploadPage(_context, folderId, folderUrl, { force = true } = {}) {
+  const liveContext = force
+    ? await forceReconnectContext()
+    : await getLiveContext(_context);
+
+  let page = findDriveFolderPage(liveContext.pages(), folderId);
+  if (page && page.url().includes(folderId)) {
     await page.bringToFront().catch(() => {});
+    logger.info('Соединение с Chrome восстановлено');
     return { page, context: liveContext };
   }
 
-  page = liveContext.pages().find((p) => alive(p) && p.url().includes('drive.google.com'));
   if (page) {
-    await openTargetFolder(page, folderId, folderUrl);
+    page = await openTargetFolder(page, folderId, folderUrl);
+    logger.info('Соединение с Chrome восстановлено');
     return { page, context: liveContext };
   }
 
   page = await liveContext.newPage();
-  await openTargetFolder(page, folderId, folderUrl);
+  page = await openTargetFolder(page, folderId, folderUrl);
+  logger.info('Соединение с Chrome восстановлено');
   return { page, context: liveContext };
 }
 
@@ -78,7 +113,7 @@ async function resolveUploadPage(context, folderId, folderUrl) {
   }
 
   if (!page.url().includes(folderId)) {
-    await openTargetFolder(page, folderId, folderUrl);
+    page = await openTargetFolder(page, folderId, folderUrl);
   } else {
     logger.info(`Уже в нужной папке: ${page.url()}`);
     await waitForDriveFolder(page, folderId);
@@ -91,6 +126,7 @@ async function resolveUploadPage(context, folderId, folderUrl) {
 module.exports = {
   sleep,
   getLiveContext,
+  findDriveFolderPage,
   waitForDriveFolder,
   openTargetFolder,
   recoverUploadPage,

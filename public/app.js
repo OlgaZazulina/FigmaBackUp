@@ -15,6 +15,7 @@ let linksCache = [];
 let designersCache = [];
 let pendingDeleteId = null;
 let backupInProgress = false;
+let backupCancelling = false;
 let authReady = false;
 let dragState = null;
 let filterDesigner = null;
@@ -237,6 +238,13 @@ function syncBackupControls() {
   document.querySelectorAll('[data-action="force-backup"]').forEach((btn) => {
     btn.disabled = disabled;
   });
+
+  const stopBtn = $('#btn-backup-stop');
+  if (stopBtn) {
+    stopBtn.hidden = !backupInProgress;
+    stopBtn.disabled = !backupInProgress || backupCancelling;
+  }
+
   if (typeof syncCatMascot === 'function') {
     syncCatMascot(backupInProgress);
   }
@@ -489,6 +497,18 @@ function closeDeleteModal() {
   modal.setAttribute('aria-hidden', 'true');
 }
 
+function openStopBackupModal() {
+  const modal = $('#stop-backup-modal');
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeStopBackupModal() {
+  const modal = $('#stop-backup-modal');
+  modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden', 'true');
+}
+
 $('#btn-add-link').addEventListener('click', () => openLinkModal('add'));
 
 $('#link-modal').addEventListener('click', (e) => {
@@ -550,6 +570,12 @@ $('#delete-modal').addEventListener('click', (e) => {
   }
 });
 
+$('#stop-backup-modal').addEventListener('click', (e) => {
+  if (e.target.closest('[data-close-stop-backup]')) {
+    closeStopBackupModal();
+  }
+});
+
 $('#btn-confirm-delete').addEventListener('click', async () => {
   if (!pendingDeleteId) return;
   const id = pendingDeleteId;
@@ -562,6 +588,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (!$('#link-modal').classList.contains('hidden')) closeLinkModal();
   if (!$('#delete-modal').classList.contains('hidden')) closeDeleteModal();
+  if (!$('#stop-backup-modal').classList.contains('hidden')) closeStopBackupModal();
 });
 
 $('#form-link').addEventListener('submit', async (e) => {
@@ -698,6 +725,7 @@ $('#links-body').addEventListener('click', async (e) => {
 
   if (action === 'force-backup') {
     backupInProgress = true;
+    backupCancelling = false;
     syncBackupControls();
     syncDragHandles();
     try {
@@ -707,6 +735,7 @@ $('#links-body').addEventListener('click', async (e) => {
       appendLog({ timestamp: new Date().toISOString(), level: 'error', message: err.message });
     } finally {
       backupInProgress = false;
+      backupCancelling = false;
       syncBackupControls();
       syncDragHandles();
     }
@@ -739,6 +768,7 @@ $('#btn-auth-google').addEventListener('click', async () => {
 
 $('#btn-backup').addEventListener('click', async () => {
   backupInProgress = true;
+  backupCancelling = false;
   syncBackupControls();
   syncDragHandles();
   const ids = getBackupCandidateIds();
@@ -749,8 +779,31 @@ $('#btn-backup').addEventListener('click', async () => {
     appendLog({ timestamp: new Date().toISOString(), level: 'error', message: err.message });
   } finally {
     backupInProgress = false;
+    backupCancelling = false;
     syncBackupControls();
     syncDragHandles();
+  }
+});
+
+$('#btn-backup-stop').addEventListener('click', () => {
+  if (!backupInProgress || backupCancelling) return;
+  openStopBackupModal();
+});
+
+$('#btn-confirm-stop-backup').addEventListener('click', async () => {
+  if (!backupInProgress || backupCancelling) return;
+  closeStopBackupModal();
+  backupCancelling = true;
+  syncBackupControls();
+  try {
+    await api('POST', '/api/backup/cancel');
+    await waitForBackupToFinish();
+    await refreshAuthStatus();
+  } catch (err) {
+    appendLog({ timestamp: new Date().toISOString(), level: 'error', message: err.message });
+  } finally {
+    backupCancelling = false;
+    syncBackupControls();
   }
 });
 

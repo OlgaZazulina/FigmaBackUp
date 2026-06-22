@@ -3,6 +3,7 @@ const path = require('path');
 const os = require('os');
 const { DOWNLOADS_TMP } = require('../store/paths');
 const logger = require('../logger');
+const { throwIfBackupCancelled } = require('../backup/cancel');
 
 const STALL_TIMEOUT_MS = 30_000;
 const MAX_DOWNLOAD_MS = 2 * 60 * 60 * 1000;
@@ -110,6 +111,7 @@ async function waitForFileComplete(figPath, deadlineMs, stallMs) {
   logger.info(`Скачивание: ${path.basename(figPath)}`);
 
   while (Date.now() < deadlineMs) {
+    throwIfBackupCancelled();
     const partialPath = `${figPath}.crdownload`;
     const partialSize = getFileSize(partialPath);
     const figSize = getFileSize(figPath);
@@ -176,6 +178,7 @@ async function waitForDownloadResult(page, triggerFn, options = {}) {
 
   try {
     while (Date.now() < deadline) {
+      throwIfBackupCancelled();
       if (preferredName && !downloadStartedLogged) {
         logger.info(`Скачивание началось: ${preferredName}`);
         downloadStartedLogged = true;

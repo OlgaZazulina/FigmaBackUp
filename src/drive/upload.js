@@ -9,7 +9,9 @@ const {
   resolveUploadPage,
 } = require('./folder-page');
 const { fileVisibleInFolder } = require('./file-info');
+const { forceReconnectContext } = require('../playwright/chrome-manager');
 const logger = require('../logger');
+const { throwIfBackupCancelled } = require('../backup/cancel');
 
 const UPLOAD_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 const UPLOAD_START_TIMEOUT_MS = 90_000;
@@ -28,6 +30,30 @@ function isContextClosedError(err) {
 
 function isPageClosedError(err) {
   return isContextClosedError(err);
+}
+
+async function reconnectDuringUpload(context, folderId, folderUrl, lastPercent) {
+  if (lastPercent >= 0) {
+    logger.info(`Временно потеряна связь с вкладкой (${lastPercent}%) — восстанавливаю...`);
+  } else {
+    logger.info('Временно потеряна связь с вкладкой — восстанавливаю...');
+  }
+  return recoverUploadPage(context, folderId, folderUrl, { force: true });
+}
+
+async function tryFileVisibleAfterDisconnect(liveContext, fileName) {
+  if (!liveContext || !fileName) return null;
+  try {
+    const pages = liveContext.pages().filter((p) => !p.isClosed());
+    for (const p of pages) {
+      if (await fileVisibleInFolder(p, fileName).catch(() => false)) {
+        return p;
+      }
+    }
+  } catch {
+    // keep polling
+  }
+  return null;
 }
 
 function runOsascript(lines) {
@@ -82,6 +108,7 @@ async function confirmReplaceDialog(page) {
   const deadline = Date.now() + 60_000;
 
   while (Date.now() < deadline) {
+    throwIfBackupCancelled();
     const modal = page.locator('[aria-modal="true"]').filter({
       hasText: /already exists|уже существует/i,
     }).first();
@@ -220,6 +247,7 @@ async function waitForUploadToStart(page, context, folderId, folderUrl) {
   let liveContext = context;
 
   while (Date.now() < deadline) {
+    throwIfBackupCancelled();
     try {
       const status = await safeGetUploadStatus(activePage);
       if (status.active) {
@@ -229,8 +257,12 @@ async function waitForUploadToStart(page, context, folderId, folderUrl) {
       }
     } catch (err) {
       if (!isPageClosedError(err)) throw err;
-      logger.info('Вкладка Drive перезагрузилась — переподключаюсь...');
-      ({ page: activePage, context: liveContext } = await recoverUploadPage(liveContext, folderId, folderUrl));
+      ({ page: activePage, context: liveContext } = await reconnectDuringUpload(
+        liveContext,
+        folderId,
+        folderUrl,
+        -1,
+      ));
     }
     await sleep(1000);
   }
@@ -248,21 +280,30 @@ async function waitForUploadComplete(page, context, folderId, folderUrl, fileNam
   let liveContext = context;
 
   while (Date.now() < deadline) {
+    throwIfBackupCancelled();
     let status = { active: false, percent: null, label: '' };
 
     try {
       status = await safeGetUploadStatus(activePage);
     } catch (err) {
       if (!isPageClosedError(err)) throw err;
-      logger.info(
-        lastPercent >= 0
-          ? `Вкладка Drive недоступна на ${lastPercent}% — переподключаюсь, загрузка продолжается в Chrome...`
-          : 'Вкладка Drive недоступна — переподключаюсь...',
-      );
       try {
-        ({ page: activePage, context: liveContext } = await recoverUploadPage(liveContext, folderId, folderUrl));
-      } catch (recoverErr) {
-        logger.info(`Переподключение не удалось: ${recoverErr.message}`);
+        ({ page: activePage, context: liveContext } = await reconnectDuringUpload(
+          liveContext,
+          folderId,
+          folderUrl,
+          lastPercent,
+        ));
+        if (lastPercent > 0 && (await fileVisibleInFolder(activePage, fileName).catch(() => false))) {
+          logger.success('Загрузка в Drive завершена');
+          return activePage;
+        }
+      } catch {
+        const recoveredPage = await tryFileVisibleAfterDisconnect(liveContext, fileName);
+        if (recoveredPage) {
+          logger.success('Загрузка в Drive завершена');
+          return recoveredPage;
+        }
       }
       await sleep(3000);
       continue;
@@ -281,9 +322,33 @@ async function waitForUploadComplete(page, context, folderId, folderUrl, fileNam
       await sleep(3000);
       return activePage;
     } else if (lastPercent > 0) {
-      logger.info(`Прогресс пропал на ${lastPercent}% (offline/перезагрузка) — жду...`);
-      if (await fileVisibleInFolder(activePage, fileName)) {
-        logger.success('Файл уже появился в папке — загрузка завершена');
+      let visible = false;
+      try {
+        visible = await fileVisibleInFolder(activePage, fileName);
+      } catch (err) {
+        if (isPageClosedError(err)) {
+          try {
+            ({ page: activePage, context: liveContext } = await reconnectDuringUpload(
+              liveContext,
+              folderId,
+              folderUrl,
+              lastPercent,
+            ));
+            visible = await fileVisibleInFolder(activePage, fileName).catch(() => false);
+          } catch {
+            const recoveredPage = await tryFileVisibleAfterDisconnect(liveContext, fileName);
+            if (recoveredPage) {
+              logger.success('Загрузка в Drive завершена');
+              return recoveredPage;
+            }
+            visible = false;
+          }
+        } else {
+          throw err;
+        }
+      }
+      if (visible) {
+        logger.success('Загрузка в Drive завершена');
         return activePage;
       }
       if (Date.now() - lastProgressAt > 10 * 60 * 1000) {
@@ -311,6 +376,15 @@ async function uploadFile(page, context, folderId, folderUrl, localFilePath) {
 
   const localSizeBytes = fs.statSync(absolutePath).size;
   let liveContext = await getLiveContext(context);
+  try {
+    await liveContext.pages();
+  } catch (err) {
+    if (isContextClosedError(err)) {
+      liveContext = await forceReconnectContext();
+    } else {
+      throw err;
+    }
+  }
   let { page: activePage } = await resolveUploadPage(liveContext, folderId, folderUrl);
   liveContext = await getLiveContext(liveContext);
   const replacing = await fileVisibleInFolder(activePage, fileName);
@@ -342,7 +416,7 @@ async function uploadFile(page, context, folderId, folderUrl, localFilePath) {
   } catch (err) {
     try {
       liveContext = await getLiveContext(liveContext);
-      ({ page: activePage } = await recoverUploadPage(liveContext, folderId, folderUrl));
+      ({ page: activePage } = await recoverUploadPage(liveContext, folderId, folderUrl, { force: true }));
       if (await fileVisibleInFolder(activePage, fileName)) {
         logger.success(`«${fileName}» уже в папке Drive — загрузка завершилась несмотря на сбой вкладки`);
         return;

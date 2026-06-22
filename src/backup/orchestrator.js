@@ -12,6 +12,13 @@ const {
   formatSkipDateLabel,
 } = require('./fig-filename');
 const logger = require('../logger');
+const {
+  BackupCancelledError,
+  resetBackupCancel,
+  isBackupCancelRequested,
+  throwIfBackupCancelled,
+} = require('./cancel');
+const { startSleepGuard, stopSleepGuard } = require('../system/sleep-guard');
 
 function makeTimestampDir() {
   const now = new Date();
@@ -50,6 +57,8 @@ function logBackupSummary(uploaded, skipped, errors) {
 }
 
 async function runBackup(linkIds = null, { force = false } = {}) {
+  resetBackupCancel();
+
   const enabledLinks = linkIds && linkIds.length > 0
     ? getEnabledLinksByIds(linkIds)
     : getEnabledLinks();
@@ -63,12 +72,17 @@ async function runBackup(linkIds = null, { force = false } = {}) {
   logger.info(`Начинаю бэкап ${enabledLinks.length} файл(ов)...`);
 
   const chrome = await acquireContext();
+  startSleepGuard();
   const uploaded = [];
   const skipped = [];
   const errors = [];
 
+  let cancelled = false;
+
   try {
     for (const link of enabledLinks) {
+      throwIfBackupCancelled();
+
       try {
         const driveFileName = expectedFigFileName(link.name);
 
@@ -98,8 +112,9 @@ async function runBackup(linkIds = null, { force = false } = {}) {
         }
 
         logger.info(`Скачиваю «${link.name}» из Figma...`);
+        const downloadContext = await ensureLiveContext();
         const { destPath } = await downloadFigmaFileWithContext(
-          chrome.context,
+          downloadContext,
           link.figmaUrl,
           backupDir,
           link.name,
@@ -116,15 +131,23 @@ async function runBackup(linkIds = null, { force = false } = {}) {
         logger.success(`«${link.name}» — готово`);
         uploaded.push({ name: link.name });
       } catch (err) {
+        if (err instanceof BackupCancelledError) {
+          cancelled = true;
+          break;
+        }
         logger.error(`«${link.name}» — ${err.message}`);
         errors.push({ name: link.name, message: err.message });
       }
     }
   } finally {
+    stopSleepGuard();
     await chrome.release();
   }
 
   logBackupSummary(uploaded, skipped, errors);
+  if (cancelled || isBackupCancelRequested()) {
+    logger.info('Бэкап остановлен пользователем');
+  }
   return { uploaded, skipped, errors };
 }
 

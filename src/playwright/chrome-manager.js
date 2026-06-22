@@ -202,6 +202,15 @@ async function ensureLiveContext() {
   return chromeSession.reconnect();
 }
 
+async function forceReconnectContext() {
+  const chromeSession = getSession();
+  if (chromeSession.cdpBrowser) {
+    await chromeSession.cdpBrowser.close().catch(() => {});
+    chromeSession.cdpBrowser = null;
+  }
+  return chromeSession.reconnect();
+}
+
 async function acquireContext() {
   const chromeSession = getSession();
   const context = await chromeSession.acquire();
@@ -239,6 +248,7 @@ function isChromeRunning() {
 module.exports = {
   acquireContext,
   ensureLiveContext,
+  forceReconnectContext,
   resetBrowserProfiles,
   getProfileDir,
   isChromeRunning,

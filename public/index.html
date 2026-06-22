@@ -91,6 +91,7 @@
       </table>
       <div class="backup-row">
         <button id="btn-backup" class="backup-btn" disabled>Сделать бэкап</button>
+        <button type="button" id="btn-backup-stop" class="btn-backup-stop" hidden disabled>Остановить</button>
       </div>
     </section>
 
@@ -163,6 +164,21 @@
       <div class="modal-actions">
         <button type="button" class="btn-secondary" data-close-delete>Отмена</button>
         <button type="button" class="btn-danger" id="btn-confirm-delete">Удалить</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="stop-backup-modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close-stop-backup></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="stop-backup-modal-title">
+      <div class="modal-header">
+        <h2 id="stop-backup-modal-title">Остановить бэкап?</h2>
+        <button type="button" class="modal-close" data-close-stop-backup aria-label="Закрыть">×</button>
+      </div>
+      <p class="modal-text">Текущий файл не будет загружен. Уже загруженные файлы останутся на Drive.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" data-close-stop-backup>Отмена</button>
+        <button type="button" class="btn-danger" id="btn-confirm-stop-backup">Остановить</button>
       </div>
     </div>
   </div>
