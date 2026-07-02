@@ -23,7 +23,7 @@
       "name": "BroMoney (AGG)",
       "figmaUrl": "https://www.figma.com/design/4DbARQY0iH2SQHoXlQEB6q/BroMoney--AGG-?m=auto&t=flFXu3sMJG1rRh5y-6",
       "driveFolderUrl": "https://drive.google.com/drive/folders/1nPXTwsWLJvXYIV7HuOeBuHzC7Z49e3r2",
-      "enabled": false,
+      "enabled": true,
       "responsible": "Оля Л",
       "backup": "Софа"
     },
@@ -32,7 +32,7 @@
       "name": "Catalog of Crash Games (AGG)",
       "figmaUrl": "https://www.figma.com/design/Ly4eioYpluAxEYoTd9Vh9H/Catalog-of-Crash-Games--AGG-?m=auto&t=flFXu3sMJG1rRh5y-6",
       "driveFolderUrl": "https://drive.google.com/drive/folders/1b3V1089-n4thS30zJ24qeyB_h1bVixT3",
-      "enabled": false,
+      "enabled": true,
       "responsible": "Туран",
       "backup": "Таня Б"
     },
@@ -59,7 +59,7 @@
       "name": "FakeApps 2 (AGG)",
       "figmaUrl": "https://www.figma.com/design/posnoNJyTnFt58DfCnhd2B/FakeApps-2--AGG-?m=auto&t=flFXu3sMJG1rRh5y-6",
       "driveFolderUrl": "https://drive.google.com/drive/folders/1si3PyrRdEDlQXGBVBB-E8BmC8sONKCWs",
-      "enabled": true,
+      "enabled": false,
       "responsible": "Оля Л",
       "backup": "Таня Б"
     },
@@ -131,7 +131,7 @@
       "name": "Kod.Mobi (AGG)",
       "figmaUrl": "https://www.figma.com/design/vinRHQSZEpRUwXSR15ylix/Kod.Mobi--AGG-?m=auto&t=flFXu3sMJG1rRh5y-6",
       "driveFolderUrl": "https://drive.google.com/drive/folders/1DKlbMrX-SQY8nmhYU1AyFL8fu6MEqtUg",
-      "enabled": true,
+      "enabled": false,
       "responsible": "Оля Л",
       "backup": "Настя Е"
     },
@@ -140,7 +140,7 @@
       "name": "Marketing Banners (AGG)",
       "figmaUrl": "https://www.figma.com/design/4assdurrDZnJmIDmASlbBj/Marketing-Banners--AGG-?m=auto&t=flFXu3sMJG1rRh5y-6",
       "driveFolderUrl": "https://drive.google.com/drive/folders/1txnCKQd6qawLyY3vGnZTBskmYkRxeOAC",
-      "enabled": true,
+      "enabled": false,
       "responsible": "Таня Б",
       "backup": "Оля Л"
     },
@@ -401,7 +401,7 @@
       "name": "Olimp Casino Slots",
       "figmaUrl": "https://www.figma.com/design/HPZLDNBZ8MhewnWO5sjeLg/Olimp-Casino-Slots?m=auto&t=flFXu3sMJG1rRh5y-6",
       "driveFolderUrl": "https://drive.google.com/drive/folders/1TrVX6IwFL69kqlVzMTQB_2x_4mvjaV1e",
-      "enabled": true,
+      "enabled": false,
       "responsible": "Оля Л",
       "backup": "Таня Б"
     },
