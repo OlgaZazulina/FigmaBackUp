@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { getEnabledLinks, getEnabledLinksByIds } = require('../store/links');
+const { getEnabledLinks, getEnabledLinksByIds, getLinksByIds } = require('../store/links');
 const { BACKUP_DIR } = require('../store/paths');
 const { acquireContext, ensureLiveContext } = require('../playwright/chrome-manager');
 const { downloadFigmaFileWithContext } = require('../figma/download');
@@ -60,10 +60,10 @@ async function runBackup(linkIds = null, { force = false } = {}) {
   resetBackupCancel();
 
   const enabledLinks = linkIds && linkIds.length > 0
-    ? getEnabledLinksByIds(linkIds)
+    ? (force ? getLinksByIds(linkIds) : getEnabledLinksByIds(linkIds))
     : getEnabledLinks();
   if (enabledLinks.length === 0) {
-    logger.info('Нет включённых ссылок для бэкапа');
+    logger.info(force ? 'Ссылки для бэкапа не найдены' : 'Нет включённых ссылок для бэкапа');
     return { uploaded: [], skipped: [], errors: [] };
   }
 

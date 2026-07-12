@@ -4,9 +4,9 @@ const logger = require('../logger');
 const { sanitizeLinkName } = require('../backup/fig-filename');
 const { waitForDownloadResult } = require('./download-wait');
 const { throwIfBackupCancelled } = require('../backup/cancel');
-const { ensureLiveContext } = require('../playwright/chrome-manager');
+const { ensureLiveContext, newBackgroundPage } = require('../playwright/chrome-manager');
 
-const EXPORT_TIMEOUT_MS = 30 * 60 * 1000;
+const EXPORT_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 const NAV_TIMEOUT_MS = 90_000;
 
 function isContextClosedError(err) {
@@ -134,7 +134,13 @@ async function downloadFigmaFileWithContext(context, figmaUrl, destDir, linkName
   const cleanUrl = normalizeFigmaUrl(figmaUrl);
 
   return withContextReconnect(context, async (liveContext) => {
-    const page = await liveContext.newPage();
+    let page;
+    try {
+      page = await newBackgroundPage(liveContext);
+    } catch (err) {
+      logger.info(`Фоновая вкладка недоступна (${err.message}) — открываю обычную`);
+      page = await liveContext.newPage();
+    }
 
     try {
       logger.info(`Открываю: ${cleanUrl}`);

@@ -78,7 +78,6 @@ async function recoverUploadPage(_context, folderId, folderUrl, { force = true }
 
   let page = findDriveFolderPage(liveContext.pages(), folderId);
   if (page && page.url().includes(folderId)) {
-    await page.bringToFront().catch(() => {});
     logger.info('Соединение с Chrome восстановлено');
     return { page, context: liveContext };
   }
@@ -119,7 +118,6 @@ async function resolveUploadPage(context, folderId, folderUrl) {
     await waitForDriveFolder(page, folderId);
   }
 
-  await page.bringToFront();
   return { page, context: liveContext };
 }
 

@@ -160,11 +160,11 @@ function createServer(port) {
 
     const link = links.getLinkById(req.params.id);
     if (!link) return res.status(404).json({ error: 'Ссылка не найдена' });
-    if (!link.enabled) {
-      return res.status(400).json({ error: 'Ссылка отключена' });
-    }
 
     const force = !!req.body?.force;
+    if (!force && !link.enabled) {
+      return res.status(400).json({ error: 'Ссылка отключена' });
+    }
     backupRunning = true;
     res.json({
       ok: true,

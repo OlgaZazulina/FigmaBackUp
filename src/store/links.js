@@ -53,6 +53,11 @@ function getEnabledLinksByIds(ids) {
   return ids.map((id) => byId.get(id)).filter((l) => l && l.enabled);
 }
 
+function getLinksByIds(ids) {
+  const byId = new Map(getLinks().map((l) => [l.id, l]));
+  return ids.map((id) => byId.get(id)).filter(Boolean);
+}
+
 function getLinkById(id) {
   return getLinks().find((l) => l.id === id) || null;
 }
@@ -125,6 +130,7 @@ module.exports = {
   getLinks,
   getEnabledLinks,
   getEnabledLinksByIds,
+  getLinksByIds,
   getLinkById,
   addLink,
   updateLink,

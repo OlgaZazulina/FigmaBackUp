@@ -195,6 +195,31 @@ function getSession() {
   return session;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function newBackgroundPage(context) {
+  let anchor = context.pages().find((p) => !p.isClosed());
+  if (!anchor) {
+    anchor = await context.newPage();
+  }
+
+  const before = new Set(context.pages());
+  const cdp = await context.newCDPSession(anchor);
+  await cdp.send('Target.createTarget', { url: 'about:blank', background: true });
+  await cdp.detach().catch(() => {});
+
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    const page = context.pages().find((p) => !p.isClosed() && !before.has(p));
+    if (page) return page;
+    await sleep(100);
+  }
+
+  throw new Error('Не удалось создать фоновую вкладку');
+}
+
 async function ensureLiveContext() {
   const chromeSession = getSession();
   const live = await chromeSession.getLiveContext();
@@ -249,6 +274,7 @@ module.exports = {
   acquireContext,
   ensureLiveContext,
   forceReconnectContext,
+  newBackgroundPage,
   resetBrowserProfiles,
   getProfileDir,
   isChromeRunning,

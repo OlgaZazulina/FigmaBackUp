@@ -13,7 +13,7 @@ const { forceReconnectContext } = require('../playwright/chrome-manager');
 const logger = require('../logger');
 const { throwIfBackupCancelled } = require('../backup/cancel');
 
-const UPLOAD_TIMEOUT_MS = 2 * 60 * 60 * 1000;
+const UPLOAD_TIMEOUT_MS = 6 * 60 * 60 * 1000;
 const UPLOAD_START_TIMEOUT_MS = 90_000;
 const LARGE_FILE_BYTES = 45 * 1024 * 1024;
 
@@ -100,10 +100,6 @@ async function dismissOfflineBanner(page) {
 
 async function confirmReplaceDialog(page) {
   logger.info('Подтверждаю замену файла в Google Drive...');
-  if (process.platform === 'darwin') {
-    runOsascript(['tell application "Google Chrome" to activate']);
-  }
-  await page.bringToFront();
 
   const deadline = Date.now() + 60_000;
 
@@ -222,8 +218,6 @@ async function setFilesOnHiddenInput(page, absolutePath) {
 async function startUpload(page, absolutePath) {
   const sizeBytes = fs.statSync(absolutePath).size;
   const sizeGb = (sizeBytes / 1024 ** 3).toFixed(2);
-
-  await page.bringToFront();
 
   const [fileChooser] = await Promise.all([
     page.waitForEvent('filechooser', { timeout: 20_000 }),
