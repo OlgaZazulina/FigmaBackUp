@@ -20,6 +20,8 @@ let authReady = false;
 let dragState = null;
 let filterDesigner = null;
 let filterResponsibleOnly = false;
+let backupSessionActive = false;
+let pendingResultRunId = null;
 
 const DEFAULT_AVATAR = '/avatars/Default.png';
 
@@ -39,12 +41,20 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForBackupToFinish() {
+async function waitForBackupResult(expectedRunId) {
   while (true) {
     const status = await api('GET', '/api/auth/status');
-    if (!status.backupRunning) return;
+    if (!status.backupRunning) break;
     await sleep(500);
   }
+  for (let i = 0; i < 20; i++) {
+    const status = await api('GET', '/api/auth/status');
+    if (status.backupResultRunId == expectedRunId) {
+      return api('GET', '/api/backup/result');
+    }
+    await sleep(500);
+  }
+  return null;
 }
 
 function appendLog(entry) {
@@ -78,7 +88,9 @@ async function refreshAuthStatus() {
   renderServiceStatus(status.figma, $('#card-figma'), $('#status-figma'));
   renderServiceStatus(status.google, $('#card-google'), $('#status-google'));
   authReady = status.ready;
-  backupInProgress = Boolean(status.backupRunning);
+  if (!backupSessionActive) {
+    backupInProgress = Boolean(status.backupRunning);
+  }
   syncBackupControls();
   syncDragHandles();
 }
@@ -243,6 +255,11 @@ function syncBackupControls() {
   if (stopBtn) {
     stopBtn.hidden = !backupInProgress;
     stopBtn.disabled = !backupInProgress || backupCancelling;
+  }
+
+  const confirmStopBtn = $('#btn-confirm-stop-backup');
+  if (confirmStopBtn) {
+    confirmStopBtn.disabled = backupCancelling;
   }
 
   if (typeof syncCatMascot === 'function') {
@@ -509,6 +526,123 @@ function closeStopBackupModal() {
   modal.setAttribute('aria-hidden', 'true');
 }
 
+function renderBackupResultSections(result) {
+  const sections = [];
+
+  if (result.cancelled && !result.uploaded?.length) {
+    sections.push('<p class="backup-result-empty-upload">Ни один файл не был загружен</p>');
+  }
+
+  if (result.uploaded?.length) {
+    const items = result.uploaded.map((x) => `<li>${escapeHtml(x.name)}</li>`).join('');
+    sections.push(`
+      <div class="backup-result-section backup-result-section--uploaded">
+        <h3>Загружены (${result.uploaded.length})</h3>
+        <ul>${items}</ul>
+      </div>`);
+  }
+
+  if (result.skipped?.length) {
+    const items = result.skipped.map((x) =>
+      `<li>«${escapeHtml(x.name)}» — ${escapeHtml(x.reason)}</li>`,
+    ).join('');
+    sections.push(`
+      <div class="backup-result-section backup-result-section--skipped">
+        <h3>Пропущены (${result.skipped.length})</h3>
+        <ul>${items}</ul>
+      </div>`);
+  }
+
+  if (result.errors?.length) {
+    const items = result.errors.map((x) =>
+      `<li>«${escapeHtml(x.name)}» — ${escapeHtml(x.message)}</li>`,
+    ).join('');
+    sections.push(`
+      <div class="backup-result-section backup-result-section--errors">
+        <h3>Ошибки (${result.errors.length})</h3>
+        <ul>${items}</ul>
+      </div>`);
+  }
+
+  return sections.join('');
+}
+
+async function playBackupResultVideo() {
+  const video = $('#backup-result-video');
+  if (!video) return;
+  video.pause();
+  video.currentTime = 0;
+  video.muted = false;
+  try {
+    await video.play();
+  } catch {
+    video.muted = true;
+    try { await video.play(); } catch { /* graceful */ }
+  }
+}
+
+function openBackupResultModal(result) {
+  const modal = $('#backup-result-modal');
+  const videoWrap = $('.backup-result-video-wrap');
+  pendingResultRunId = result.runId ?? null;
+  $('#backup-result-title').textContent = result.cancelled
+    ? 'Бэкап остановлен'
+    : 'Результаты бэкапа';
+  $('#backup-result-body').innerHTML = renderBackupResultSections(result);
+  if (result.cancelled) {
+    videoWrap.classList.add('hidden');
+    const video = $('#backup-result-video');
+    if (video) {
+      video.pause();
+      video.currentTime = 0;
+    }
+  } else {
+    videoWrap.classList.remove('hidden');
+    playBackupResultVideo();
+  }
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+async function closeBackupResultModal() {
+  const modal = $('#backup-result-modal');
+  const video = $('#backup-result-video');
+  if (video) {
+    video.pause();
+    video.currentTime = 0;
+  }
+  $('#backup-result-body').innerHTML = '';
+  modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden', 'true');
+  if (pendingResultRunId != null) {
+    const runId = pendingResultRunId;
+    pendingResultRunId = null;
+    try {
+      await api('DELETE', '/api/backup/result', { runId });
+    } catch { /* ignore */ }
+  }
+}
+
+function hasBackupResultContent(result) {
+  if (!result) return false;
+  if (result.cancelled) return true;
+  return (result.uploaded?.length > 0)
+    || (result.skipped?.length > 0)
+    || (result.errors?.length > 0);
+}
+
+async function finishBackupAndShowResult(expectedRunId) {
+  if (!expectedRunId) return;
+  try {
+    const result = await waitForBackupResult(expectedRunId);
+    if (hasBackupResultContent(result)) {
+      openBackupResultModal(result);
+    }
+  } catch (err) {
+    appendLog({ timestamp: new Date().toISOString(), level: 'error', message: err.message });
+  }
+}
+
 $('#btn-add-link').addEventListener('click', () => openLinkModal('add'));
 
 $('#link-modal').addEventListener('click', (e) => {
@@ -574,6 +708,10 @@ $('#stop-backup-modal').addEventListener('click', (e) => {
   if (e.target.closest('[data-close-stop-backup]')) {
     closeStopBackupModal();
   }
+});
+
+$('#btn-backup-result-close').addEventListener('click', () => {
+  closeBackupResultModal();
 });
 
 $('#btn-confirm-delete').addEventListener('click', async () => {
@@ -724,18 +862,23 @@ $('#links-body').addEventListener('click', async (e) => {
   }
 
   if (action === 'force-backup') {
+    backupSessionActive = true;
     backupInProgress = true;
     backupCancelling = false;
+    await closeBackupResultModal();
     syncBackupControls();
     syncDragHandles();
+    let runId = null;
     try {
-      await api('POST', `/api/links/${id}/backup`, { force: true });
-      await waitForBackupToFinish();
+      const res = await api('POST', `/api/links/${id}/backup`, { force: true });
+      runId = res.runId;
     } catch (err) {
       appendLog({ timestamp: new Date().toISOString(), level: 'error', message: err.message });
     } finally {
-      backupInProgress = false;
       backupCancelling = false;
+      if (runId) await finishBackupAndShowResult(runId);
+      backupSessionActive = false;
+      backupInProgress = false;
       syncBackupControls();
       syncDragHandles();
     }
@@ -767,19 +910,24 @@ $('#btn-auth-google').addEventListener('click', async () => {
 });
 
 $('#btn-backup').addEventListener('click', async () => {
+  backupSessionActive = true;
   backupInProgress = true;
   backupCancelling = false;
+  await closeBackupResultModal();
   syncBackupControls();
   syncDragHandles();
   const ids = getBackupCandidateIds();
+  let runId = null;
   try {
-    await api('POST', '/api/backup', { ids });
-    await waitForBackupToFinish();
+    const res = await api('POST', '/api/backup', { ids });
+    runId = res.runId;
   } catch (err) {
     appendLog({ timestamp: new Date().toISOString(), level: 'error', message: err.message });
   } finally {
-    backupInProgress = false;
     backupCancelling = false;
+    if (runId) await finishBackupAndShowResult(runId);
+    backupSessionActive = false;
+    backupInProgress = false;
     syncBackupControls();
     syncDragHandles();
   }
@@ -797,12 +945,9 @@ $('#btn-confirm-stop-backup').addEventListener('click', async () => {
   syncBackupControls();
   try {
     await api('POST', '/api/backup/cancel');
-    await waitForBackupToFinish();
-    await refreshAuthStatus();
   } catch (err) {
-    appendLog({ timestamp: new Date().toISOString(), level: 'error', message: err.message });
-  } finally {
     backupCancelling = false;
+    appendLog({ timestamp: new Date().toISOString(), level: 'error', message: err.message });
     syncBackupControls();
   }
 });

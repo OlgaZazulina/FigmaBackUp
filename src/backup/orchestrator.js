@@ -10,6 +10,7 @@ const {
   expectedFigFileName,
   shouldSkipUpload,
   formatSkipDateLabel,
+  formatSkipReason,
 } = require('./fig-filename');
 const logger = require('../logger');
 const {
@@ -46,7 +47,7 @@ function logBackupSummary(uploaded, skipped, errors) {
     logger.info('Загружены (0): нет');
   }
   if (skipped.length) {
-    const list = skipped.map((x) => `«${x.name}» (${formatSkipDateLabel(x.modifiedAt)})`).join(', ');
+    const list = skipped.map((x) => `«${x.name}» (${x.reason})`).join(', ');
     logger.info(`Пропущены (${skipped.length}): ${list}`);
   } else {
     logger.info('Пропущены (0): нет');
@@ -64,7 +65,7 @@ async function runBackup(linkIds = null, { force = false } = {}) {
     : getEnabledLinks();
   if (enabledLinks.length === 0) {
     logger.info(force ? 'Ссылки для бэкапа не найдены' : 'Нет включённых ссылок для бэкапа');
-    return { uploaded: [], skipped: [], errors: [] };
+    return { uploaded: [], skipped: [], errors: [], cancelled: false };
   }
 
   const backupDir = makeTimestampDir();
@@ -98,7 +99,7 @@ async function runBackup(linkIds = null, { force = false } = {}) {
           if (info.exists && info.modifiedAt && shouldSkipUpload(info.modifiedAt)) {
             const label = formatSkipDateLabel(info.modifiedAt);
             logger.info(`«${link.name}» — пропущен: на Drive обновлён ${label}`);
-            skipped.push({ name: link.name, modifiedAt: info.modifiedAt });
+            skipped.push(formatSkipReason(link.name, info.modifiedAt));
             continue;
           }
           if (info.exists && !info.modifiedAt) {
@@ -148,7 +149,12 @@ async function runBackup(linkIds = null, { force = false } = {}) {
   if (cancelled || isBackupCancelRequested()) {
     logger.info('Бэкап остановлен пользователем');
   }
-  return { uploaded, skipped, errors };
+  return {
+    uploaded,
+    skipped,
+    errors,
+    cancelled: cancelled || isBackupCancelRequested(),
+  };
 }
 
 module.exports = { runBackup };

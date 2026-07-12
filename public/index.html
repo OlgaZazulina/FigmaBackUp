@@ -184,6 +184,22 @@
     </div>
   </div>
 
+  <div id="backup-result-modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog backup-result-dialog" role="dialog" aria-modal="true" aria-labelledby="backup-result-title">
+      <div class="modal-header">
+        <h2 id="backup-result-title">Результаты бэкапа</h2>
+      </div>
+      <div class="backup-result-video-wrap">
+        <video id="backup-result-video" class="backup-result-video" src="/happycat.mp4?v=2" playsinline></video>
+      </div>
+      <div id="backup-result-body" class="backup-result-body"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-primary" id="btn-backup-result-close">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
   <div id="backup-cat" class="backup-cat" aria-hidden="true">
     <div class="backup-cat-bubble designer-name" role="tooltip"></div>
     <div class="backup-cat-lottie" id="backup-cat-lottie"></div>

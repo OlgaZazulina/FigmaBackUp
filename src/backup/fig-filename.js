@@ -30,10 +30,18 @@ function formatSkipDateLabel(modifiedAt, now = new Date()) {
   return formatted;
 }
 
+function formatSkipReason(name, modifiedAt, now = new Date()) {
+  return {
+    name,
+    reason: `на Drive обновлён ${formatSkipDateLabel(modifiedAt, now)}`,
+  };
+}
+
 module.exports = {
   sanitizeLinkName,
   expectedFigFileName,
   calendarDaysSinceModified,
   shouldSkipUpload,
   formatSkipDateLabel,
+  formatSkipReason,
 };

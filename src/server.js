@@ -8,9 +8,11 @@ const { PUBLIC_DIR } = require('./store/paths');
 const { authenticateFigma } = require('./figma/auth');
 const { authenticateGoogle } = require('./drive/auth');
 const { runBackup } = require('./backup/orchestrator');
-const { requestBackupCancel } = require('./backup/cancel');
+const { requestBackupCancel, isBackupCancelRequested, resetBackupCancel } = require('./backup/cancel');
 
 let backupRunning = false;
+let backupRunId = 0;
+let lastBackupResult = null;
 
 function createServer(port) {
   resetBrowserProfiles();
@@ -77,7 +79,11 @@ function createServer(port) {
   });
 
   app.get('/api/auth/status', (_req, res) => {
-    res.json({ ...getAuthStatus(), backupRunning });
+    res.json({
+      ...getAuthStatus(),
+      backupRunning,
+      backupResultRunId: lastBackupResult?.runId ?? null,
+    });
   });
 
   app.post('/api/auth/figma', async (_req, res) => {
@@ -141,12 +147,31 @@ function createServer(port) {
       linkIds = ids;
     }
 
+    const runId = ++backupRunId;
     backupRunning = true;
-    res.json({ ok: true, message: 'Бэкап запущен' });
+    lastBackupResult = null;
+    res.json({ ok: true, message: 'Бэкап запущен', runId });
 
     runBackup(linkIds, { force: false })
-      .catch((err) => logger.error(`Критическая ошибка бэкапа: ${err.message}`))
-      .finally(() => { backupRunning = false; });
+      .then((result) => {
+        lastBackupResult = { ...result, runId };
+        backupRunning = false;
+        resetBackupCancel();
+      })
+      .catch((err) => {
+        logger.error(`Критическая ошибка бэкапа: ${err.message}`);
+        if (isBackupCancelRequested()) {
+          lastBackupResult = {
+            uploaded: [],
+            skipped: [],
+            errors: [],
+            cancelled: true,
+            runId,
+          };
+        }
+        backupRunning = false;
+        resetBackupCancel();
+      });
   });
 
   app.post('/api/links/:id/backup', async (req, res) => {
@@ -165,15 +190,47 @@ function createServer(port) {
     if (!force && !link.enabled) {
       return res.status(400).json({ error: 'Ссылка отключена' });
     }
+    const runId = ++backupRunId;
     backupRunning = true;
+    lastBackupResult = null;
     res.json({
       ok: true,
       message: force ? 'Принудительная загрузка запущена' : 'Бэкап запущен',
+      runId,
     });
 
     runBackup([link.id], { force })
-      .catch((err) => logger.error(`Критическая ошибка бэкапа: ${err.message}`))
-      .finally(() => { backupRunning = false; });
+      .then((result) => {
+        lastBackupResult = { ...result, runId };
+        backupRunning = false;
+        resetBackupCancel();
+      })
+      .catch((err) => {
+        logger.error(`Критическая ошибка бэкапа: ${err.message}`);
+        if (isBackupCancelRequested()) {
+          lastBackupResult = {
+            uploaded: [],
+            skipped: [],
+            errors: [],
+            cancelled: true,
+            runId,
+          };
+        }
+        backupRunning = false;
+        resetBackupCancel();
+      });
+  });
+
+  app.get('/api/backup/result', (_req, res) => {
+    res.json(lastBackupResult);
+  });
+
+  app.delete('/api/backup/result', (req, res) => {
+    const { runId } = req.body || {};
+    if (runId == null || lastBackupResult?.runId === runId) {
+      lastBackupResult = null;
+    }
+    res.status(204).end();
   });
 
   app.get('/api/logs', (req, res) => {

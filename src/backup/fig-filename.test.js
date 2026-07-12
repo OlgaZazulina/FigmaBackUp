@@ -4,6 +4,7 @@ const {
   expectedFigFileName,
   shouldSkipUpload,
   calendarDaysSinceModified,
+  formatSkipReason,
 } = require('./fig-filename');
 
 describe('expectedFigFileName', () => {
@@ -41,5 +42,16 @@ describe('calendarDaysSinceModified', () => {
 
   it('returns 1 for previous calendar day', () => {
     assert.equal(calendarDaysSinceModified(new Date('2026-06-07T01:00:00'), now), 1);
+  });
+});
+
+describe('formatSkipReason', () => {
+  it('includes drive date label', () => {
+    const modifiedAt = new Date('2026-07-12T10:00:00');
+    const now = new Date('2026-07-12T12:00:00');
+    const result = formatSkipReason('Макет', modifiedAt, now);
+    assert.equal(result.name, 'Макет');
+    assert.match(result.reason, /на Drive обновлён/);
+    assert.match(result.reason, /сегодня/);
   });
 });
