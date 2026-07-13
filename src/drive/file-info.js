@@ -190,6 +190,7 @@ async function getDriveFileInfoWithContext(context, driveFolderUrl, fileName) {
 }
 
 module.exports = {
+  getDriveFileInfo,
   getDriveFileInfoWithContext,
   fileVisibleInFolder,
   findAllFileListRows,
