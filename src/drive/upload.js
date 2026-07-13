@@ -17,6 +17,8 @@ const { throwIfBackupCancelled, BackupCancelledError } = require('../backup/canc
 const UPLOAD_TIMEOUT_MS = 6 * 60 * 60 * 1000;
 const UPLOAD_START_TIMEOUT_MS = 90_000;
 const LARGE_FILE_BYTES = 45 * 1024 * 1024;
+const UPLOAD_MENU_ATTEMPTS = 3;
+const UPLOAD_MENU_ITEM_TIMEOUT_MS = 15_000;
 const DRIVE_CONFIRM_POLL_MS = 3000;
 const DRIVE_CONFIRM_GRACE_MS = 120_000;
 
@@ -248,16 +250,89 @@ async function getUploadStatus(page) {
   return { active: false, percent: null, label: '' };
 }
 
-async function clickFileUploadMenu(page) {
-  await page.keyboard.press('Escape').catch(() => {});
-  await sleep(150);
+async function dismissDriveUi(page) {
+  for (let i = 0; i < 3; i += 1) {
+    await page.keyboard.press('Escape').catch(() => {});
+    await sleep(120);
+  }
 
-  const newButton = page.getByRole('button', { name: /^(New|Создать)$/i }).first();
-  await newButton.click({ timeout: 15_000 });
-  const uploadItem = page.getByRole('menuitem', {
-    name: /File upload|Upload files|Загрузить файлы|Отправить файлы/i,
+  const closeButtons = page.getByRole('button', {
+    name: /^(Close|Закрыть|Dismiss|Отмена|Cancel)$/i,
+  });
+  const closeCount = await closeButtons.count().catch(() => 0);
+  for (let i = 0; i < closeCount; i += 1) {
+    const btn = closeButtons.nth(i);
+    if (await btn.isVisible({ timeout: 200 }).catch(() => false)) {
+      await btn.click().catch(() => {});
+    }
+  }
+}
+
+async function waitForDriveUiIdle(page, maxWaitMs = 60_000) {
+  const deadline = Date.now() + maxWaitMs;
+  while (Date.now() < deadline) {
+    throwIfBackupCancelled();
+    const status = await getUploadStatus(page).catch(() => ({ active: false }));
+    if (!status.active) return;
+    await sleep(2000);
+  }
+  logger.info('Индикатор загрузки в Drive ещё активен — продолжаю');
+}
+
+function uploadMenuItemLocator(page) {
+  const pattern = /File upload|Upload files|Загрузить файлы|Отправить файлы|Загрузка файлов/i;
+  return page.locator('[role="menuitem"], [role="option"], [role="menuitemradio"]').filter({
+    hasText: pattern,
   }).first();
-  await uploadItem.click({ timeout: 10_000 });
+}
+
+async function clickNewButton(page) {
+  const candidates = [
+    page.getByRole('button', { name: /^(New|Создать|Новый)$/i }).first(),
+    page.locator('button[aria-label*="New" i], button[aria-label*="Создать" i]').first(),
+    page.locator('[guidedhelpid="new_menu_button"]').first(),
+  ];
+
+  for (const button of candidates) {
+    if (await button.isVisible({ timeout: 1500 }).catch(() => false)) {
+      await button.click({ timeout: 15_000 });
+      return;
+    }
+  }
+
+  throw new Error('Кнопка «Создать» не найдена в Google Drive');
+}
+
+async function clickFileUploadMenu(page) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= UPLOAD_MENU_ATTEMPTS; attempt += 1) {
+    throwIfBackupCancelled();
+    try {
+      await dismissDriveUi(page);
+      await dismissOfflineBanner(page);
+      await waitForDriveUiIdle(page, attempt === 1 ? 60_000 : 10_000);
+
+      await clickNewButton(page);
+      await page.locator('[role="menu"], [role="listbox"]').first()
+        .waitFor({ state: 'visible', timeout: 5000 })
+        .catch(() => {});
+
+      const uploadItem = uploadMenuItemLocator(page);
+      await uploadItem.waitFor({ state: 'visible', timeout: UPLOAD_MENU_ITEM_TIMEOUT_MS });
+      await uploadItem.click({ timeout: UPLOAD_MENU_ITEM_TIMEOUT_MS });
+      return;
+    } catch (err) {
+      lastError = err;
+      if (attempt < UPLOAD_MENU_ATTEMPTS) {
+        logger.info(`Меню загрузки Drive недоступно (попытка ${attempt}/${UPLOAD_MENU_ATTEMPTS}) — повторяю...`);
+        await dismissDriveUi(page);
+        await sleep(1000);
+      }
+    }
+  }
+
+  throw lastError || new Error('Не удалось открыть меню загрузки в Google Drive');
 }
 
 async function setFilesOnHiddenInput(page, absolutePath) {
@@ -285,23 +360,49 @@ async function setFilesOnHiddenInput(page, absolutePath) {
   }
 }
 
-async function startUpload(page, absolutePath) {
+async function startUpload(page, context, folderId, folderUrl, absolutePath) {
   const sizeBytes = fs.statSync(absolutePath).size;
   const sizeGb = (sizeBytes / 1024 ** 3).toFixed(2);
+  let activePage = page;
+  let lastError = null;
 
-  const [fileChooser] = await Promise.all([
-    page.waitForEvent('filechooser', { timeout: 20_000 }),
-    clickFileUploadMenu(page),
-  ]);
+  for (let attempt = 1; attempt <= UPLOAD_MENU_ATTEMPTS; attempt += 1) {
+    throwIfBackupCancelled();
+    try {
+      if (attempt > 1) {
+        const recovered = await recoverUploadPage(
+          context,
+          folderId,
+          folderUrl,
+          { force: attempt === UPLOAD_MENU_ATTEMPTS },
+        );
+        activePage = recovered.page;
+      }
 
-  if (sizeBytes > LARGE_FILE_BYTES) {
-    logger.info(`Большой файл (${sizeGb} ГБ) — передаю через CDP`);
-    await setFilesOnHiddenInput(page, absolutePath);
-  } else {
-    await fileChooser.setFiles(absolutePath);
+      if (sizeBytes > LARGE_FILE_BYTES) {
+        await clickFileUploadMenu(activePage);
+        logger.info(`Большой файл (${sizeGb} ГБ) — передаю через CDP`);
+        await setFilesOnHiddenInput(activePage, absolutePath);
+      } else {
+        const [fileChooser] = await Promise.all([
+          activePage.waitForEvent('filechooser', { timeout: 20_000 }),
+          clickFileUploadMenu(activePage),
+        ]);
+        await fileChooser.setFiles(absolutePath);
+      }
+
+      logger.info(`Файл передан в Drive (${sizeGb} ГБ)`);
+      return activePage;
+    } catch (err) {
+      lastError = err;
+      if (attempt < UPLOAD_MENU_ATTEMPTS) {
+        logger.info(`Не удалось начать загрузку в Drive (попытка ${attempt}/${UPLOAD_MENU_ATTEMPTS}) — повторяю...`);
+        await sleep(1500);
+      }
+    }
   }
 
-  logger.info(`Файл передан в Drive (${sizeGb} ГБ)`);
+  throw lastError || new Error('Не удалось начать загрузку в Google Drive');
 }
 
 async function waitForUploadToStart(page, context, folderId, folderUrl) {
@@ -495,7 +596,8 @@ async function uploadFile(page, context, folderId, folderUrl, localFilePath) {
   }
 
   try {
-    await startUpload(activePage, absolutePath);
+    await waitForDriveUiIdle(activePage, 60_000);
+    activePage = await startUpload(activePage, liveContext, folderId, folderUrl, absolutePath);
 
     if (replacing) {
       const confirmed = await confirmReplaceDialog(activePage);
