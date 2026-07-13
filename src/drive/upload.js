@@ -12,11 +12,13 @@ const { fileVisibleInFolder, getDriveFileInfo } = require('./file-info');
 const { isModifiedOnOrAfter, formatSkipDateLabel } = require('../backup/fig-filename');
 const { forceReconnectContext } = require('../playwright/chrome-manager');
 const logger = require('../logger');
-const { throwIfBackupCancelled } = require('../backup/cancel');
+const { throwIfBackupCancelled, BackupCancelledError } = require('../backup/cancel');
 
 const UPLOAD_TIMEOUT_MS = 6 * 60 * 60 * 1000;
 const UPLOAD_START_TIMEOUT_MS = 90_000;
 const LARGE_FILE_BYTES = 45 * 1024 * 1024;
+const DRIVE_CONFIRM_POLL_MS = 3000;
+const DRIVE_CONFIRM_GRACE_MS = 120_000;
 
 function formatSize(bytes) {
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} ГБ`;
@@ -143,31 +145,75 @@ async function safeGetUploadStatus(page) {
   return getUploadStatus(page);
 }
 
+async function isUploadConfirmedOnDrive(page, fileName, uploadStartedAt, { replacing = false } = {}) {
+  if (!(await fileVisibleInFolder(page, fileName).catch(() => false))) {
+    return false;
+  }
+  if (!replacing) {
+    return true;
+  }
+  const info = await getDriveFileInfo(page, fileName);
+  return !!(info.modifiedAt && isModifiedOnOrAfter(info.modifiedAt, uploadStartedAt));
+}
+
+async function waitForDriveUploadConfirmation(
+  page,
+  context,
+  folderId,
+  folderUrl,
+  fileName,
+  {
+    replacing = false,
+    uploadStartedAt = new Date(),
+    lastPercent = -1,
+    maxWaitMs = DRIVE_CONFIRM_GRACE_MS,
+  } = {},
+) {
+  const deadline = Date.now() + maxWaitMs;
+  let activePage = page;
+  let liveContext = context;
+
+  while (Date.now() < deadline) {
+    throwIfBackupCancelled();
+    try {
+      if (await isUploadConfirmedOnDrive(activePage, fileName, uploadStartedAt, { replacing })) {
+        if (lastPercent >= 0 && lastPercent < 100) {
+          logger.info(
+            `Загрузка подтверждена на Drive (индикатор остановился на ${lastPercent}%)`,
+          );
+        }
+        return activePage;
+      }
+    } catch (err) {
+      if (!isPageClosedError(err)) throw err;
+      ({ page: activePage, context: liveContext } = await reconnectDuringUpload(
+        liveContext,
+        folderId,
+        folderUrl,
+        lastPercent,
+      ));
+    }
+    await sleep(DRIVE_CONFIRM_POLL_MS);
+  }
+
+  return null;
+}
+
 async function verifyReplacedFile(page, fileName, localSizeBytes, { replacing = false, uploadStartedAt = new Date() } = {}) {
   if (!(await fileVisibleInFolder(page, fileName))) {
     throw new Error(`«${fileName}» отсутствует в папке Drive после загрузки`);
   }
 
   if (replacing) {
-    let verified = false;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    const confirmed = await isUploadConfirmedOnDrive(page, fileName, uploadStartedAt, { replacing: true });
+    if (!confirmed) {
       const info = await getDriveFileInfo(page, fileName);
-      if (info.modifiedAt && isModifiedOnOrAfter(info.modifiedAt, uploadStartedAt)) {
-        verified = true;
-        break;
-      }
-      if (attempt < 2) await sleep(2000);
-      else {
-        const label = info.modifiedAt
-          ? formatSkipDateLabel(info.modifiedAt, uploadStartedAt)
-          : 'неизвестна';
-        throw new Error(
-          `«${fileName}» не обновлён на Drive — дата изменения ${label}, замена не подтверждена`,
-        );
-      }
-    }
-    if (!verified) {
-      throw new Error(`«${fileName}» не обновлён на Drive — замена не подтверждена`);
+      const label = info.modifiedAt
+        ? formatSkipDateLabel(info.modifiedAt, uploadStartedAt)
+        : 'неизвестна';
+      throw new Error(
+        `«${fileName}» не обновлён на Drive — дата изменения ${label}, замена не подтверждена`,
+      );
     }
   }
 
@@ -288,7 +334,14 @@ async function waitForUploadToStart(page, context, folderId, folderUrl) {
   throw new Error('Загрузка не началась — нет индикатора прогресса в Google Drive');
 }
 
-async function waitForUploadComplete(page, context, folderId, folderUrl, fileName, { replacing = false } = {}) {
+async function waitForUploadComplete(
+  page,
+  context,
+  folderId,
+  folderUrl,
+  fileName,
+  { replacing = false, uploadStartedAt = new Date() } = {},
+) {
   logger.info('Ожидание завершения загрузки в Drive...');
   const deadline = Date.now() + UPLOAD_TIMEOUT_MS;
   let lastLog = 0;
@@ -312,15 +365,33 @@ async function waitForUploadComplete(page, context, folderId, folderUrl, fileNam
           folderUrl,
           lastPercent,
         ));
-        if (lastPercent >= 100 && (await fileVisibleInFolder(activePage, fileName).catch(() => false))) {
+        const confirmed = await waitForDriveUploadConfirmation(
+          activePage,
+          liveContext,
+          folderId,
+          folderUrl,
+          fileName,
+          { replacing, uploadStartedAt, lastPercent, maxWaitMs: 15_000 },
+        );
+        if (confirmed) {
           logger.success('Загрузка в Drive завершена');
-          return activePage;
+          return confirmed;
         }
       } catch {
         const recoveredPage = await tryFileVisibleAfterDisconnect(liveContext, fileName);
-        if (recoveredPage && lastPercent >= 100) {
-          logger.success('Загрузка в Drive завершена');
-          return recoveredPage;
+        if (recoveredPage) {
+          const confirmed = await waitForDriveUploadConfirmation(
+            recoveredPage,
+            liveContext,
+            folderId,
+            folderUrl,
+            fileName,
+            { replacing, uploadStartedAt, lastPercent, maxWaitMs: 15_000 },
+          );
+          if (confirmed) {
+            logger.success('Загрузка в Drive завершена');
+            return confirmed;
+          }
         }
       }
       await sleep(3000);
@@ -340,49 +411,51 @@ async function waitForUploadComplete(page, context, folderId, folderUrl, fileNam
       await sleep(3000);
       return activePage;
     } else if (lastPercent > 0) {
-      let visible = false;
-      try {
-        visible = await fileVisibleInFolder(activePage, fileName);
-      } catch (err) {
-        if (isPageClosedError(err)) {
-          try {
-            ({ page: activePage, context: liveContext } = await reconnectDuringUpload(
-              liveContext,
-              folderId,
-              folderUrl,
-              lastPercent,
-            ));
-            visible = await fileVisibleInFolder(activePage, fileName).catch(() => false);
-          } catch {
-            const recoveredPage = await tryFileVisibleAfterDisconnect(liveContext, fileName);
-            if (recoveredPage && lastPercent >= 100) {
-              logger.success('Загрузка в Drive завершена');
-              return recoveredPage;
-            }
-            visible = false;
-          }
-        } else {
-          throw err;
-        }
-      }
-      if (visible && lastPercent >= 100) {
+      const confirmed = await waitForDriveUploadConfirmation(
+        activePage,
+        liveContext,
+        folderId,
+        folderUrl,
+        fileName,
+        { replacing, uploadStartedAt, lastPercent },
+      );
+      if (confirmed) {
         logger.success('Загрузка в Drive завершена');
-        return activePage;
-      }
-      if (visible && replacing) {
-        throw new Error(
-          `Загрузка «${fileName}» прервалась на ${lastPercent}% — старый файл мог остаться на Drive`,
-        );
+        return confirmed;
       }
       if (Date.now() - lastProgressAt > 10 * 60 * 1000) {
-        throw new Error(`Загрузка остановилась на ${lastPercent}%`);
+        throw new Error(
+          `«${fileName}» не обновлён на Drive — индикатор остановился на ${lastPercent}%`,
+        );
       }
     } else if (!replacing) {
-      logger.success('Загрузка в Drive завершена');
-      await sleep(3000);
-      return activePage;
+      const confirmed = await waitForDriveUploadConfirmation(
+        activePage,
+        liveContext,
+        folderId,
+        folderUrl,
+        fileName,
+        { replacing: false, uploadStartedAt, maxWaitMs: 30_000 },
+      );
+      if (confirmed) {
+        logger.success('Загрузка в Drive завершена');
+        return confirmed;
+      }
+      throw new Error(`«${fileName}» не появился в папке Drive после загрузки`);
     } else {
-      throw new Error(`Загрузка «${fileName}» не началась — индикатор прогресса не появился`);
+      const confirmed = await waitForDriveUploadConfirmation(
+        activePage,
+        liveContext,
+        folderId,
+        folderUrl,
+        fileName,
+        { replacing, uploadStartedAt, maxWaitMs: 60_000 },
+      );
+      if (confirmed) {
+        logger.success('Загрузка в Drive завершена');
+        return confirmed;
+      }
+      throw new Error(`«${fileName}» не обновлён на Drive — индикатор прогресса не появился`);
     }
 
     await sleep(2000);
@@ -437,19 +510,42 @@ async function uploadFile(page, context, folderId, folderUrl, localFilePath) {
     }
 
     activePage = await waitForUploadToStart(activePage, liveContext, folderId, folderUrl);
-    activePage = await waitForUploadComplete(activePage, liveContext, folderId, folderUrl, fileName, { replacing });
+    activePage = await waitForUploadComplete(activePage, liveContext, folderId, folderUrl, fileName, {
+      replacing,
+      uploadStartedAt,
+    });
     await verifyReplacedFile(activePage, fileName, localSizeBytes, { replacing, uploadStartedAt });
   } catch (err) {
+    if (err instanceof BackupCancelledError) {
+      try {
+        liveContext = await getLiveContext(liveContext);
+        ({ page: activePage } = await recoverUploadPage(liveContext, folderId, folderUrl, { force: true }));
+        await verifyReplacedFile(activePage, fileName, localSizeBytes, { replacing, uploadStartedAt });
+        logger.success(`«${fileName}» загружен на Drive (бэкап остановлен после завершения загрузки)`);
+        return;
+      } catch {
+        throw err;
+      }
+    }
+
     try {
       liveContext = await getLiveContext(liveContext);
       ({ page: activePage } = await recoverUploadPage(liveContext, folderId, folderUrl, { force: true }));
-      if (await fileVisibleInFolder(activePage, fileName)) {
-        await verifyReplacedFile(activePage, fileName, localSizeBytes, { replacing, uploadStartedAt });
-        logger.success(`«${fileName}» уже в папке Drive — загрузка завершилась несмотря на сбой вкладки`);
+      const confirmed = await waitForDriveUploadConfirmation(
+        activePage,
+        liveContext,
+        folderId,
+        folderUrl,
+        fileName,
+        { replacing, uploadStartedAt },
+      );
+      if (confirmed) {
+        await verifyReplacedFile(confirmed, fileName, localSizeBytes, { replacing, uploadStartedAt });
+        logger.success(`«${fileName}» загружен на Drive — подтверждено после сбоя вкладки`);
         return;
       }
     } catch (verifyErr) {
-      if (verifyErr.message.includes('не обновлён на Drive')) {
+      if (verifyErr.message.includes('не обновлён на Drive') || verifyErr.message.includes('отсутствует в папке')) {
         throw verifyErr;
       }
       // ignore recovery errors, fall through to original error
