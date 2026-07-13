@@ -113,26 +113,6 @@ async function isDriveOfflineBannerVisible(page) {
   return false;
 }
 
-async function probeUploadMenuEnabled(page) {
-  try {
-    await dismissDriveUi(page);
-    await clickNewButton(page);
-    const uploadItem = uploadMenuItemLocator(page);
-    const visible = await uploadItem.isVisible({ timeout: 5000 }).catch(() => false);
-    if (!visible) {
-      await dismissDriveUi(page);
-      return false;
-    }
-    const ariaDisabled = await uploadItem.getAttribute('aria-disabled');
-    const enabled = await uploadItem.isEnabled().catch(() => true);
-    await dismissDriveUi(page);
-    return enabled && ariaDisabled !== 'true';
-  } catch {
-    await dismissDriveUi(page).catch(() => {});
-    return false;
-  }
-}
-
 async function reloadDriveFolder(page, folderId, folderUrl) {
   logger.info('Обновляю папку Drive — выхожу из офлайн-режима...');
   await page.bringToFront();
@@ -154,12 +134,15 @@ async function ensureDriveReadyForUpload(page, folderId, folderUrl) {
       continue;
     }
 
-    if (await probeUploadMenuEnabled(activePage)) {
+    const newButtonVisible = await activePage.getByRole('button', { name: /^(New|Создать|Новый)$/i }).first()
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
+    if (newButtonVisible) {
       logger.info('Google Drive готов к загрузке');
       return activePage;
     }
 
-    logger.info('Меню «Загрузить файлы» недоступно — обновляю папку Drive...');
+    logger.info('Интерфейс Drive ещё загружается — обновляю папку...');
     activePage = await reloadDriveFolder(activePage, folderId, folderUrl);
     await sleep(3000);
   }
@@ -356,11 +339,29 @@ async function waitForDriveUiIdle(page, maxWaitMs = 60_000) {
   logger.info('Индикатор загрузки в Drive ещё активен — продолжаю');
 }
 
-function uploadMenuItemLocator(page) {
-  const pattern = /File upload|Upload files|Загрузить файлы|Отправить файлы|Загрузка файлов/i;
-  return page.locator('[role="menuitem"], [role="option"], [role="menuitemradio"]').filter({
-    hasText: pattern,
-  }).first();
+const UPLOAD_MENU_ITEM_NAME = /File upload|Upload files?|Загрузить файл(ы)?|Отправить файлы?|Загрузка файлов?/i;
+
+async function clickUploadMenuItem(page) {
+  const candidates = [
+    page.getByRole('menuitem', { name: UPLOAD_MENU_ITEM_NAME }).first(),
+    page.locator('[role="menuitem"], [role="option"], [role="menuitemradio"]').filter({
+      hasText: UPLOAD_MENU_ITEM_NAME,
+    }).first(),
+    page.getByText(UPLOAD_MENU_ITEM_NAME).first(),
+  ];
+
+  for (const item of candidates) {
+    if (await item.isVisible({ timeout: 3000 }).catch(() => false)) {
+      const ariaDisabled = await item.getAttribute('aria-disabled');
+      if (ariaDisabled === 'true') {
+        throw new Error('Пункт «Загрузить файл» недоступен — Google Drive в офлайн-режиме');
+      }
+      await item.click({ timeout: UPLOAD_MENU_ITEM_TIMEOUT_MS });
+      return;
+    }
+  }
+
+  throw new Error('Пункт «Загрузить файл» не найден в меню Google Drive');
 }
 
 async function clickNewButton(page) {
@@ -387,18 +388,20 @@ async function clickFileUploadMenu(page, folderId, folderUrl) {
   for (let attempt = 1; attempt <= UPLOAD_MENU_ATTEMPTS; attempt += 1) {
     throwIfBackupCancelled();
     try {
-      activePage = await ensureDriveReadyForUpload(activePage, folderId, folderUrl);
+      await activePage.bringToFront();
+      if (await isDriveOfflineBannerVisible(activePage)) {
+        activePage = await reloadDriveFolder(activePage, folderId, folderUrl);
+        await sleep(3000);
+      }
       await dismissDriveUi(activePage);
       await waitForDriveUiIdle(activePage, attempt === 1 ? 60_000 : 10_000);
 
       await clickNewButton(activePage);
       await activePage.locator('[role="menu"], [role="listbox"]').first()
-        .waitFor({ state: 'visible', timeout: 5000 })
+        .waitFor({ state: 'visible', timeout: 8000 })
         .catch(() => {});
 
-      const uploadItem = uploadMenuItemLocator(activePage);
-      await uploadItem.waitFor({ state: 'visible', timeout: UPLOAD_MENU_ITEM_TIMEOUT_MS });
-      await uploadItem.click({ timeout: UPLOAD_MENU_ITEM_TIMEOUT_MS });
+      await clickUploadMenuItem(activePage);
       return activePage;
     } catch (err) {
       lastError = err;

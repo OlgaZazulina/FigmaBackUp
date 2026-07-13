@@ -78,6 +78,7 @@ async function recoverUploadPage(_context, folderId, folderUrl, { force = true }
 
   let page = findDriveFolderPage(liveContext.pages(), folderId);
   if (page && page.url().includes(folderId)) {
+    page = await openTargetFolder(page, folderId, folderUrl);
     logger.info('Соединение с Chrome восстановлено');
     return { page, context: liveContext };
   }
