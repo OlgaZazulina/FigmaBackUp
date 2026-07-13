@@ -21,22 +21,9 @@ const {
 } = require('./cancel');
 const { startSleepGuard, stopSleepGuard } = require('../system/sleep-guard');
 
-function makeTimestampDir() {
-  const now = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  const stamp = [
-    now.getFullYear(),
-    pad(now.getMonth() + 1),
-    pad(now.getDate()),
-  ].join('-') + '_' + [
-    pad(now.getHours()),
-    pad(now.getMinutes()),
-    pad(now.getSeconds()),
-  ].join('-');
-
-  const dir = path.join(BACKUP_DIR, stamp);
-  fs.mkdirSync(dir, { recursive: true });
-  return dir;
+function ensureBackupDir() {
+  fs.mkdirSync(BACKUP_DIR, { recursive: true });
+  return BACKUP_DIR;
 }
 
 function logBackupSummary(uploaded, skipped, errors) {
@@ -68,8 +55,8 @@ async function runBackup(linkIds = null, { force = false } = {}) {
     return { uploaded: [], skipped: [], errors: [], cancelled: false };
   }
 
-  const backupDir = makeTimestampDir();
-  logger.info(`Создана папка бэкапа: ${backupDir}`);
+  const backupDir = ensureBackupDir();
+  logger.info(`Локальная папка бэкапа: ${backupDir}`);
   logger.info(`Начинаю бэкап ${enabledLinks.length} файл(ов)...`);
 
   const chrome = await acquireContext();
