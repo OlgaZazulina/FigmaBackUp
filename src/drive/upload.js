@@ -7,6 +7,7 @@ const {
   getLiveContext,
   recoverUploadPage,
   resolveUploadPage,
+  openTargetFolder,
 } = require('./folder-page');
 const { fileVisibleInFolder, getDriveFileInfo } = require('./file-info');
 const { isModifiedOnOrAfter, formatSkipDateLabel } = require('../backup/fig-filename');
@@ -21,6 +22,7 @@ const UPLOAD_MENU_ATTEMPTS = 3;
 const UPLOAD_MENU_ITEM_TIMEOUT_MS = 15_000;
 const DRIVE_CONFIRM_POLL_MS = 3000;
 const DRIVE_CONFIRM_GRACE_MS = 120_000;
+const DRIVE_ONLINE_RECOVERY_MS = 90_000;
 
 function formatSize(bytes) {
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} ГБ`;
@@ -43,7 +45,9 @@ async function reconnectDuringUpload(context, folderId, folderUrl, lastPercent) 
   } else {
     logger.info('Временно потеряна связь с вкладкой — восстанавливаю...');
   }
-  return recoverUploadPage(context, folderId, folderUrl, { force: true });
+  const recovered = await recoverUploadPage(context, folderId, folderUrl, { force: true });
+  recovered.page = await ensureDriveReadyForUpload(recovered.page, folderId, folderUrl);
+  return recovered;
 }
 
 async function tryFileVisibleAfterDisconnect(liveContext, fileName) {
@@ -92,14 +96,87 @@ function dismissNativeOpenPanelFallback() {
   ]);
 }
 
+async function isDriveOfflineBannerVisible(page) {
+  const patterns = [
+    /нет подключения/i,
+    /некоторые функции могут быть недоступны/i,
+    /offline/i,
+    /офлайн/i,
+    /no connection/i,
+  ];
+
+  for (const pattern of patterns) {
+    if (await page.getByText(pattern).first().isVisible({ timeout: 400 }).catch(() => false)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function probeUploadMenuEnabled(page) {
+  try {
+    await dismissDriveUi(page);
+    await clickNewButton(page);
+    const uploadItem = uploadMenuItemLocator(page);
+    const visible = await uploadItem.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!visible) {
+      await dismissDriveUi(page);
+      return false;
+    }
+    const ariaDisabled = await uploadItem.getAttribute('aria-disabled');
+    const enabled = await uploadItem.isEnabled().catch(() => true);
+    await dismissDriveUi(page);
+    return enabled && ariaDisabled !== 'true';
+  } catch {
+    await dismissDriveUi(page).catch(() => {});
+    return false;
+  }
+}
+
+async function reloadDriveFolder(page, folderId, folderUrl) {
+  logger.info('Обновляю папку Drive — выхожу из офлайн-режима...');
+  await page.bringToFront();
+  return openTargetFolder(page, folderId, folderUrl);
+}
+
+async function ensureDriveReadyForUpload(page, folderId, folderUrl) {
+  const deadline = Date.now() + DRIVE_ONLINE_RECOVERY_MS;
+  let activePage = page;
+
+  while (Date.now() < deadline) {
+    throwIfBackupCancelled();
+    await activePage.bringToFront();
+
+    if (await isDriveOfflineBannerVisible(activePage)) {
+      logger.info('Google Drive в офлайн-режиме — пробую восстановить...');
+      activePage = await reloadDriveFolder(activePage, folderId, folderUrl);
+      await sleep(3000);
+      continue;
+    }
+
+    if (await probeUploadMenuEnabled(activePage)) {
+      logger.info('Google Drive готов к загрузке');
+      return activePage;
+    }
+
+    logger.info('Меню «Загрузить файлы» недоступно — обновляю папку Drive...');
+    activePage = await reloadDriveFolder(activePage, folderId, folderUrl);
+    await sleep(3000);
+  }
+
+  throw new Error(
+    'Google Drive остаётся в офлайн-режиме — загрузка недоступна. Обновите вкладку Drive вручную и повторите бэкап.',
+  );
+}
+
 async function dismissOfflineBanner(page) {
-  const offlineBanner = page.getByText(/offline|офлайн|нет подключения|no connection/i).first();
-  if (!(await offlineBanner.isVisible({ timeout: 300 }).catch(() => false))) return;
+  if (!(await isDriveOfflineBannerVisible(page))) return;
 
   logger.info('Google Drive показывает offline — жду восстановления связи...');
   const retryBtn = page.getByRole('button', { name: /Try again|Retry|Повторить|Reload|Обновить/i }).first();
   if (await retryBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
     await retryBtn.click().catch(() => {});
+    await sleep(2000);
   }
 }
 
@@ -303,31 +380,33 @@ async function clickNewButton(page) {
   throw new Error('Кнопка «Создать» не найдена в Google Drive');
 }
 
-async function clickFileUploadMenu(page) {
+async function clickFileUploadMenu(page, folderId, folderUrl) {
   let lastError = null;
+  let activePage = page;
 
   for (let attempt = 1; attempt <= UPLOAD_MENU_ATTEMPTS; attempt += 1) {
     throwIfBackupCancelled();
     try {
-      await dismissDriveUi(page);
-      await dismissOfflineBanner(page);
-      await waitForDriveUiIdle(page, attempt === 1 ? 60_000 : 10_000);
+      activePage = await ensureDriveReadyForUpload(activePage, folderId, folderUrl);
+      await dismissDriveUi(activePage);
+      await waitForDriveUiIdle(activePage, attempt === 1 ? 60_000 : 10_000);
 
-      await clickNewButton(page);
-      await page.locator('[role="menu"], [role="listbox"]').first()
+      await clickNewButton(activePage);
+      await activePage.locator('[role="menu"], [role="listbox"]').first()
         .waitFor({ state: 'visible', timeout: 5000 })
         .catch(() => {});
 
-      const uploadItem = uploadMenuItemLocator(page);
+      const uploadItem = uploadMenuItemLocator(activePage);
       await uploadItem.waitFor({ state: 'visible', timeout: UPLOAD_MENU_ITEM_TIMEOUT_MS });
       await uploadItem.click({ timeout: UPLOAD_MENU_ITEM_TIMEOUT_MS });
-      return;
+      return activePage;
     } catch (err) {
       lastError = err;
       if (attempt < UPLOAD_MENU_ATTEMPTS) {
         logger.info(`Меню загрузки Drive недоступно (попытка ${attempt}/${UPLOAD_MENU_ATTEMPTS}) — повторяю...`);
-        await dismissDriveUi(page);
-        await sleep(1000);
+        await dismissDriveUi(activePage);
+        activePage = await reloadDriveFolder(activePage, folderId, folderUrl);
+        await sleep(2000);
       }
     }
   }
@@ -376,17 +455,19 @@ async function startUpload(page, context, folderId, folderUrl, absolutePath) {
           folderUrl,
           { force: attempt === UPLOAD_MENU_ATTEMPTS },
         );
-        activePage = recovered.page;
+        activePage = await ensureDriveReadyForUpload(recovered.page, folderId, folderUrl);
+      } else {
+        activePage = await ensureDriveReadyForUpload(activePage, folderId, folderUrl);
       }
 
       if (sizeBytes > LARGE_FILE_BYTES) {
-        await clickFileUploadMenu(activePage);
+        activePage = await clickFileUploadMenu(activePage, folderId, folderUrl);
         logger.info(`Большой файл (${sizeGb} ГБ) — передаю через CDP`);
         await setFilesOnHiddenInput(activePage, absolutePath);
       } else {
         const [fileChooser] = await Promise.all([
           activePage.waitForEvent('filechooser', { timeout: 20_000 }),
-          clickFileUploadMenu(activePage),
+          clickFileUploadMenu(activePage, folderId, folderUrl),
         ]);
         await fileChooser.setFiles(absolutePath);
       }
@@ -587,6 +668,7 @@ async function uploadFile(page, context, folderId, folderUrl, localFilePath) {
   }
   let { page: activePage } = await resolveUploadPage(liveContext, folderId, folderUrl);
   liveContext = await getLiveContext(liveContext);
+  activePage = await ensureDriveReadyForUpload(activePage, folderId, folderUrl);
   const replacing = await fileVisibleInFolder(activePage, fileName);
 
   if (replacing) {
