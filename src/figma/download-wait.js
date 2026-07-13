@@ -5,11 +5,12 @@ const { DOWNLOADS_TMP } = require('../store/paths');
 const logger = require('../logger');
 const { throwIfBackupCancelled } = require('../backup/cancel');
 
-const STALL_TIMEOUT_MS = 30_000;
-const MAX_DOWNLOAD_MS = 2 * 60 * 60 * 1000;
-const MAX_TOTAL_MS = MAX_DOWNLOAD_MS + 30 * 60 * 1000;
+const STALL_TIMEOUT_MS = 45_000;
+const MAX_DOWNLOAD_MS = 60 * 60 * 1000;
+const MAX_TOTAL_MS = MAX_DOWNLOAD_MS + 15 * 60 * 1000;
 const POLL_MS = 2000;
-const LOG_INTERVAL_MS = 15_000;
+const LOG_INTERVAL_MS = 30_000;
+const TRIGGER_FAIL_GRACE_MS = 90_000;
 
 function watchDirs() {
   return [DOWNLOADS_TMP, path.join(os.homedir(), 'Downloads')];
@@ -22,9 +23,21 @@ function formatSize(bytes) {
   return `${bytes} Б`;
 }
 
+function safeReadDir(dir) {
+  try {
+    if (!fs.existsSync(dir)) return [];
+    return fs.readdirSync(dir);
+  } catch (err) {
+    if (err.code === 'EPERM') {
+      logger.info(`Нет доступа к папке ${dir} — пропускаю при поиске .fig`);
+      return [];
+    }
+    throw err;
+  }
+}
+
 function listFigFiles(dir) {
-  if (!fs.existsSync(dir)) return [];
-  return fs.readdirSync(dir).filter((f) => f.endsWith('.fig'));
+  return safeReadDir(dir).filter((f) => f.endsWith('.fig'));
 }
 
 async function sleep(ms) {
@@ -81,7 +94,7 @@ function findDownloadCandidate(snapshot, preferredName) {
   for (const dir of watchDirs()) {
     if (!fs.existsSync(dir)) continue;
 
-    for (const name of fs.readdirSync(dir)) {
+    for (const name of safeReadDir(dir)) {
       const isFig = name.endsWith('.fig');
       const isPartial = name.endsWith('.crdownload');
       if (!isFig && !isPartial) continue;
@@ -164,6 +177,9 @@ async function waitForDownloadResult(page, triggerFn, options = {}) {
   let preferredName = null;
   let downloadStartedLogged = false;
   let triggerError = null;
+  let triggerDone = false;
+  let triggerDoneAt = 0;
+  let lastWaitLogAt = Date.now();
 
   const onDownload = (download) => {
     preferredName = download.suggestedFilename();
@@ -172,13 +188,28 @@ async function waitForDownloadResult(page, triggerFn, options = {}) {
   page.context().on('download', onDownload);
 
   const deadline = Date.now() + maxTotalMs;
-  const triggerPromise = triggerFn(page).catch((err) => {
-    triggerError = err;
-  });
+  const triggerPromise = triggerFn(page)
+    .then(() => {
+      triggerDone = true;
+      triggerDoneAt = Date.now();
+    })
+    .catch((err) => {
+      triggerError = err;
+      triggerDone = true;
+      triggerDoneAt = Date.now();
+    });
 
   try {
     while (Date.now() < deadline) {
       throwIfBackupCancelled();
+
+      if (triggerDone && triggerError) {
+        const sinceTrigger = Date.now() - triggerDoneAt;
+        if (sinceTrigger >= TRIGGER_FAIL_GRACE_MS) {
+          throw triggerError;
+        }
+      }
+
       if (preferredName && !downloadStartedLogged) {
         logger.info(`Скачивание началось: ${preferredName}`);
         downloadStartedLogged = true;
@@ -189,6 +220,11 @@ async function waitForDownloadResult(page, triggerFn, options = {}) {
         logger.info(`Файл в загрузках: ${path.basename(candidate.figPath)} (${formatSize(candidate.size)})`);
         const finalPath = await waitForFileComplete(candidate.figPath, deadline, stallMs);
         return { kind: 'file', path: finalPath };
+      }
+
+      if (triggerDone && !triggerError && Date.now() - lastWaitLogAt >= LOG_INTERVAL_MS) {
+        logger.info('Ожидаю появления файла .fig в загрузках...');
+        lastWaitLogAt = Date.now();
       }
 
       await sleep(POLL_MS);

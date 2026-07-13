@@ -4,10 +4,13 @@ const logger = require('../logger');
 const { sanitizeLinkName } = require('../backup/fig-filename');
 const { waitForDownloadResult } = require('./download-wait');
 const { throwIfBackupCancelled } = require('../backup/cancel');
-const { ensureLiveContext, newBackgroundPage } = require('../playwright/chrome-manager');
+const { ensureLiveContext } = require('../playwright/chrome-manager');
 
 const EXPORT_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 const NAV_TIMEOUT_MS = 90_000;
+const PALETTE_ATTEMPTS = 3;
+const PALETTE_INPUT_TIMEOUT_MS = 20_000;
+const SAVE_AS_QUERY_TIMEOUT_MS = 8_000;
 
 function isContextClosedError(err) {
   return /closed|detached|destroyed|crashed/i.test(err?.message || '');
@@ -60,13 +63,32 @@ async function waitForEditorReady(page) {
 }
 
 async function openActionsMenu(page) {
+  await page.bringToFront();
   await page.locator('canvas').first().click({ position: { x: 200, y: 200 }, force: true });
+  await page.waitForTimeout(300);
   await page.keyboard.press('Meta+k');
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(800);
 
   const input = page.locator('[role="combobox"] input, input[placeholder*="Search" i]').first();
-  await input.waitFor({ state: 'visible', timeout: 10_000 });
+  await input.waitFor({ state: 'visible', timeout: PALETTE_INPUT_TIMEOUT_MS });
   return input;
+}
+
+async function openActionsMenuWithRetry(page) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= PALETTE_ATTEMPTS; attempt += 1) {
+    try {
+      return await openActionsMenu(page);
+    } catch (err) {
+      lastError = err;
+      if (attempt < PALETTE_ATTEMPTS) {
+        logger.info(`Командная палитра Figma недоступна (попытка ${attempt}/${PALETTE_ATTEMPTS}) — повторяю...`);
+        await dismissOverlays(page);
+        await page.waitForTimeout(800);
+      }
+    }
+  }
+  throw lastError || new Error('Не удалось открыть командную палитру Figma (Cmd+K)');
 }
 
 async function waitForFigmaExport(page) {
@@ -84,9 +106,21 @@ async function waitForFigmaExport(page) {
 }
 
 async function clickSaveLocalCopy(page) {
-  const input = await openActionsMenu(page);
-  await input.fill('Save local copy');
-  await page.waitForTimeout(600);
+  const input = await openActionsMenuWithRetry(page);
+
+  const queries = ['Save local copy', 'Сохранить локальную копию'];
+  let matched = false;
+  for (const query of queries) {
+    await input.fill(query);
+    await page.waitForTimeout(600);
+    if (await page.getByTestId('save-as').isVisible({ timeout: SAVE_AS_QUERY_TIMEOUT_MS }).catch(() => false)) {
+      matched = true;
+      break;
+    }
+  }
+  if (!matched) {
+    throw new Error('Команда Save local copy не найдена в Figma');
+  }
 
   logger.info('Кликаю [data-testid=save-as]...');
   await page.getByTestId('save-as').click({ force: true });
@@ -134,15 +168,10 @@ async function downloadFigmaFileWithContext(context, figmaUrl, destDir, linkName
   const cleanUrl = normalizeFigmaUrl(figmaUrl);
 
   return withContextReconnect(context, async (liveContext) => {
-    let page;
-    try {
-      page = await newBackgroundPage(liveContext);
-    } catch (err) {
-      logger.info(`Фоновая вкладка недоступна (${err.message}) — открываю обычную`);
-      page = await liveContext.newPage();
-    }
+    const page = await liveContext.newPage();
 
     try {
+      await page.bringToFront();
       logger.info(`Открываю: ${cleanUrl}`);
       await page.goto(cleanUrl, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS });
       throwIfBackupCancelled();
