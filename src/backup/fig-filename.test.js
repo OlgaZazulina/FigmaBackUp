@@ -5,6 +5,8 @@ const {
   shouldSkipUpload,
   calendarDaysSinceModified,
   formatSkipReason,
+  pickNewestModifiedAt,
+  isModifiedOnOrAfter,
 } = require('./fig-filename');
 
 describe('expectedFigFileName', () => {
@@ -53,5 +55,27 @@ describe('formatSkipReason', () => {
     assert.equal(result.name, 'Макет');
     assert.match(result.reason, /на Drive обновлён/);
     assert.match(result.reason, /сегодня/);
+  });
+});
+
+describe('pickNewestModifiedAt', () => {
+  it('returns newest date among duplicates', () => {
+    const older = new Date('2026-05-27T12:00:00');
+    const newer = new Date('2026-07-12T12:00:00');
+    assert.equal(pickNewestModifiedAt([older, newer]), newer);
+  });
+});
+
+describe('isModifiedOnOrAfter', () => {
+  it('returns true for same calendar day', () => {
+    const modifiedAt = new Date('2026-07-13T08:00:00');
+    const reference = new Date('2026-07-13T11:00:00');
+    assert.equal(isModifiedOnOrAfter(modifiedAt, reference), true);
+  });
+
+  it('returns false for previous calendar day', () => {
+    const modifiedAt = new Date('2026-07-12T23:00:00');
+    const reference = new Date('2026-07-13T11:00:00');
+    assert.equal(isModifiedOnOrAfter(modifiedAt, reference), false);
   });
 });

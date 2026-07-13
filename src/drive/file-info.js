@@ -5,6 +5,7 @@ const {
   extractModifiedDateFromRowText,
   extractModifiedDateFromDetailsText,
 } = require('./parse-drive-date');
+const { pickNewestModifiedAt } = require('../backup/fig-filename');
 const logger = require('../logger');
 
 async function isListViewActive(page) {
@@ -44,25 +45,34 @@ function rowTextHasDate(rowText) {
   return /(?:[A-Za-z]{3,9}\s+\d{1,2}(?:,?\s+\d{4})?|\d{1,2}\.\d{1,2}\.\d{4}|\d{1,2}\s+[а-яё]{3,4}|сегодня|вчера|today|yesterday|\d{1,2}:\d{2})/i.test(rowText);
 }
 
-async function findFileListRow(page, fileName) {
+async function findAllFileListRows(page, fileName) {
   if (!(await isListViewActive(page))) {
-    return null;
+    return [];
   }
 
-  const listRow = page.locator('tr[role="row"]').filter({
+  const listRows = page.locator('tr[role="row"]').filter({
     has: page.getByText(fileName, { exact: true }),
-  }).first();
+  });
 
-  if (!(await listRow.isVisible({ timeout: 3000 }).catch(() => false))) {
-    return null;
+  const count = await listRows.count();
+  const rows = [];
+
+  for (let i = 0; i < count; i += 1) {
+    const row = listRows.nth(i);
+    if (!(await row.isVisible({ timeout: 500 }).catch(() => false))) continue;
+
+    const rowText = ((await row.innerText().catch(() => '')) || '').trim();
+    if (!rowTextHasDate(rowText)) continue;
+
+    rows.push(row);
   }
 
-  const rowText = ((await listRow.innerText().catch(() => '')) || '').trim();
-  if (!rowTextHasDate(rowText)) {
-    return null;
-  }
+  return rows;
+}
 
-  return listRow;
+async function findFileListRow(page, fileName) {
+  const rows = await findAllFileListRows(page, fileName);
+  return rows[0] || null;
 }
 
 async function readModifiedDateFromRow(page, row, fileName) {
@@ -140,9 +150,20 @@ async function getDriveFileInfo(page, fileName) {
   }
 
   let modifiedAt = null;
-  const row = await findFileListRow(page, fileName);
-  if (row) {
-    modifiedAt = await readModifiedDateFromRow(page, row, fileName);
+  const rows = await findAllFileListRows(page, fileName);
+  if (rows.length > 0) {
+    const rowDates = [];
+    for (const row of rows) {
+      const rowDate = await readModifiedDateFromRow(page, row, fileName);
+      if (rowDate) rowDates.push(rowDate);
+    }
+    modifiedAt = pickNewestModifiedAt(rowDates);
+
+    if (rows.length > 1) {
+      logger.info(
+        `На Drive ${rows.length} копий «${fileName}» — для проверки беру самую свежую дату`,
+      );
+    }
     if (modifiedAt) {
       logger.info(`Дата на Drive для «${fileName}»: ${modifiedAt.toLocaleDateString('ru-RU')}`);
     }
@@ -171,6 +192,7 @@ async function getDriveFileInfoWithContext(context, driveFolderUrl, fileName) {
 module.exports = {
   getDriveFileInfoWithContext,
   fileVisibleInFolder,
+  findAllFileListRows,
   findFileListRow,
   readModifiedDateFromRow,
   readModifiedFromDetailsPanel,

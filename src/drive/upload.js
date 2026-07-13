@@ -8,7 +8,8 @@ const {
   recoverUploadPage,
   resolveUploadPage,
 } = require('./folder-page');
-const { fileVisibleInFolder } = require('./file-info');
+const { fileVisibleInFolder, getDriveFileInfo } = require('./file-info');
+const { isModifiedOnOrAfter, formatSkipDateLabel } = require('../backup/fig-filename');
 const { forceReconnectContext } = require('../playwright/chrome-manager');
 const logger = require('../logger');
 const { throwIfBackupCancelled } = require('../backup/cancel');
@@ -142,9 +143,32 @@ async function safeGetUploadStatus(page) {
   return getUploadStatus(page);
 }
 
-async function verifyReplacedFile(page, fileName, localSizeBytes) {
+async function verifyReplacedFile(page, fileName, localSizeBytes, { replacing = false, uploadStartedAt = new Date() } = {}) {
   if (!(await fileVisibleInFolder(page, fileName))) {
     throw new Error(`«${fileName}» отсутствует в папке Drive после загрузки`);
+  }
+
+  if (replacing) {
+    let verified = false;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const info = await getDriveFileInfo(page, fileName);
+      if (info.modifiedAt && isModifiedOnOrAfter(info.modifiedAt, uploadStartedAt)) {
+        verified = true;
+        break;
+      }
+      if (attempt < 2) await sleep(2000);
+      else {
+        const label = info.modifiedAt
+          ? formatSkipDateLabel(info.modifiedAt, uploadStartedAt)
+          : 'неизвестна';
+        throw new Error(
+          `«${fileName}» не обновлён на Drive — дата изменения ${label}, замена не подтверждена`,
+        );
+      }
+    }
+    if (!verified) {
+      throw new Error(`«${fileName}» не обновлён на Drive — замена не подтверждена`);
+    }
   }
 
   logger.success(`«${fileName}» в папке Drive (${formatSize(localSizeBytes)})`);
@@ -264,7 +288,7 @@ async function waitForUploadToStart(page, context, folderId, folderUrl) {
   throw new Error('Загрузка не началась — нет индикатора прогресса в Google Drive');
 }
 
-async function waitForUploadComplete(page, context, folderId, folderUrl, fileName) {
+async function waitForUploadComplete(page, context, folderId, folderUrl, fileName, { replacing = false } = {}) {
   logger.info('Ожидание завершения загрузки в Drive...');
   const deadline = Date.now() + UPLOAD_TIMEOUT_MS;
   let lastLog = 0;
@@ -288,13 +312,13 @@ async function waitForUploadComplete(page, context, folderId, folderUrl, fileNam
           folderUrl,
           lastPercent,
         ));
-        if (lastPercent > 0 && (await fileVisibleInFolder(activePage, fileName).catch(() => false))) {
+        if (lastPercent >= 100 && (await fileVisibleInFolder(activePage, fileName).catch(() => false))) {
           logger.success('Загрузка в Drive завершена');
           return activePage;
         }
       } catch {
         const recoveredPage = await tryFileVisibleAfterDisconnect(liveContext, fileName);
-        if (recoveredPage) {
+        if (recoveredPage && lastPercent >= 100) {
           logger.success('Загрузка в Drive завершена');
           return recoveredPage;
         }
@@ -331,7 +355,7 @@ async function waitForUploadComplete(page, context, folderId, folderUrl, fileNam
             visible = await fileVisibleInFolder(activePage, fileName).catch(() => false);
           } catch {
             const recoveredPage = await tryFileVisibleAfterDisconnect(liveContext, fileName);
-            if (recoveredPage) {
+            if (recoveredPage && lastPercent >= 100) {
               logger.success('Загрузка в Drive завершена');
               return recoveredPage;
             }
@@ -341,17 +365,24 @@ async function waitForUploadComplete(page, context, folderId, folderUrl, fileNam
           throw err;
         }
       }
-      if (visible) {
+      if (visible && lastPercent >= 100) {
         logger.success('Загрузка в Drive завершена');
         return activePage;
+      }
+      if (visible && replacing) {
+        throw new Error(
+          `Загрузка «${fileName}» прервалась на ${lastPercent}% — старый файл мог остаться на Drive`,
+        );
       }
       if (Date.now() - lastProgressAt > 10 * 60 * 1000) {
         throw new Error(`Загрузка остановилась на ${lastPercent}%`);
       }
-    } else {
+    } else if (!replacing) {
       logger.success('Загрузка в Drive завершена');
       await sleep(3000);
       return activePage;
+    } else {
+      throw new Error(`Загрузка «${fileName}» не началась — индикатор прогресса не появился`);
     }
 
     await sleep(2000);
@@ -369,6 +400,7 @@ async function uploadFile(page, context, folderId, folderUrl, localFilePath) {
   }
 
   const localSizeBytes = fs.statSync(absolutePath).size;
+  const uploadStartedAt = new Date();
   let liveContext = await getLiveContext(context);
   try {
     await liveContext.pages();
@@ -405,18 +437,22 @@ async function uploadFile(page, context, folderId, folderUrl, localFilePath) {
     }
 
     activePage = await waitForUploadToStart(activePage, liveContext, folderId, folderUrl);
-    activePage = await waitForUploadComplete(activePage, liveContext, folderId, folderUrl, fileName);
-    await verifyReplacedFile(activePage, fileName, localSizeBytes);
+    activePage = await waitForUploadComplete(activePage, liveContext, folderId, folderUrl, fileName, { replacing });
+    await verifyReplacedFile(activePage, fileName, localSizeBytes, { replacing, uploadStartedAt });
   } catch (err) {
     try {
       liveContext = await getLiveContext(liveContext);
       ({ page: activePage } = await recoverUploadPage(liveContext, folderId, folderUrl, { force: true }));
       if (await fileVisibleInFolder(activePage, fileName)) {
+        await verifyReplacedFile(activePage, fileName, localSizeBytes, { replacing, uploadStartedAt });
         logger.success(`«${fileName}» уже в папке Drive — загрузка завершилась несмотря на сбой вкладки`);
         return;
       }
-    } catch {
-      // ignore recovery errors
+    } catch (verifyErr) {
+      if (verifyErr.message.includes('не обновлён на Drive')) {
+        throw verifyErr;
+      }
+      // ignore recovery errors, fall through to original error
     }
 
     if (replacing && !(await fileVisibleInFolder(activePage, fileName).catch(() => false))) {

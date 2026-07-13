@@ -18,6 +18,13 @@ describe('parseDriveModifiedText', () => {
     assert.equal(date.getMonth(), 5);
   });
 
+  it('parses Russian month without year from Drive list', () => {
+    const date = parseDriveModifiedText('12 июл.', now);
+    assert.equal(date.getDate(), 12);
+    assert.equal(date.getMonth(), 6);
+    assert.equal(date.getFullYear(), 2026);
+  });
+
   it('parses today', () => {
     const date = parseDriveModifiedText('сегодня', now);
     assert.equal(date.getDate(), 8);
