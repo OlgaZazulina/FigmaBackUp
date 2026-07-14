@@ -9,11 +9,11 @@ const { pickNewestModifiedAt } = require('../backup/fig-filename');
 const logger = require('../logger');
 
 async function isListViewActive(page) {
-  const listRadio = page.getByRole('radio', { name: /^List$/i }).first();
+  const listRadio = page.getByRole('radio', { name: /^(List|Список)$/i }).first();
   if (await listRadio.isVisible({ timeout: 800 }).catch(() => false)) {
     return listRadio.isChecked().catch(() => false);
   }
-  return page.getByText(/^Date modified$/i).first()
+  return page.getByText(/^(Date modified|Дата изменения)$/i).first()
     .isVisible({ timeout: 800 })
     .catch(() => false);
 }
@@ -21,14 +21,17 @@ async function isListViewActive(page) {
 async function ensureListView(page) {
   if (await isListViewActive(page)) return;
 
-  const listRadio = page.getByRole('radio', { name: /^List$/i }).first();
+  const listRadio = page.getByRole('radio', { name: /^(List|Список)$/i }).first();
   if (await listRadio.isVisible({ timeout: 2000 }).catch(() => false)) {
     await listRadio.click().catch(() => {});
     await sleep(1500);
     if (await isListViewActive(page)) return;
   }
 
-  const listByAria = page.locator('[role="radio"][aria-label="List"], [role="radio"][aria-label*="List" i]').first();
+  const listByAria = page.locator(
+    '[role="radio"][aria-label="List"], [role="radio"][aria-label*="List" i], '
+    + '[role="radio"][aria-label="Список"], [role="radio"][aria-label*="Список" i]',
+  ).first();
   if (await listByAria.isVisible({ timeout: 1000 }).catch(() => false)) {
     await listByAria.click().catch(() => {});
     await sleep(1500);
@@ -42,7 +45,7 @@ async function fileVisibleInFolder(page, fileName) {
 }
 
 function rowTextHasDate(rowText) {
-  return /(?:[A-Za-z]{3,9}\s+\d{1,2}(?:,?\s+\d{4})?|\d{1,2}\.\d{1,2}\.\d{4}|\d{1,2}\s+[а-яё]{3,4}|сегодня|вчера|today|yesterday|\d{1,2}:\d{2})/i.test(rowText);
+  return /(?:[A-Za-z]{3,9}\s+\d{1,2}(?:,?\s+\d{4})?|\d{1,2}\.\d{1,2}\.\d{4}|\d{1,2}\s+[а-яё]{3,12}\.?|сегодня|вчера|today|yesterday|\d{1,2}:\d{2})/i.test(rowText);
 }
 
 async function findAllFileListRows(page, fileName) {
@@ -114,7 +117,9 @@ async function readModifiedFromDetailsPanel(page, fileName) {
     await sleep(800);
   }
 
-  const modifiedLabel = page.getByText(/^(Last modified|Modified|Изменен|Изменено|Последнее изменение)$/i).first();
+  const modifiedLabel = page.getByText(
+    /^(Last modified|Modified|Date modified|Изменен|Изменено|Дата изменения|Последнее изменение)$/i,
+  ).first();
   let panelText = '';
   if (await modifiedLabel.isVisible({ timeout: 2000 }).catch(() => false)) {
     const section = modifiedLabel.locator('xpath=ancestor::div[1]');
@@ -123,7 +128,7 @@ async function readModifiedFromDetailsPanel(page, fileName) {
 
   if (!panelText) {
     const complementary = page.locator('[role="complementary"]').filter({
-      hasText: /modified|изменен|последн/i,
+      hasText: /modified|изменен|дата изменения|последн/i,
     }).first();
     if (await complementary.isVisible({ timeout: 1000 }).catch(() => false)) {
       panelText = ((await complementary.innerText().catch(() => '')) || '').trim();

@@ -7,7 +7,10 @@ const { throwIfBackupCancelled } = require('../backup/cancel');
 const { ensureLiveContext } = require('../playwright/chrome-manager');
 
 const EXPORT_TIMEOUT_MS = 2 * 60 * 60 * 1000;
-const NAV_TIMEOUT_MS = 90_000;
+const NAV_TIMEOUT_MS = 120_000;
+const EDITOR_READY_TIMEOUT_MS = 60_000;
+const NAV_ATTEMPTS = 2;
+const EDITOR_READY_ATTEMPTS = 2;
 const PALETTE_ATTEMPTS = 3;
 const PALETTE_INPUT_TIMEOUT_MS = 20_000;
 const SAVE_AS_QUERY_TIMEOUT_MS = 8_000;
@@ -53,13 +56,33 @@ async function dismissOverlays(page) {
 
 async function waitForEditorReady(page) {
   logger.info('Ожидание загрузки редактора Figma...');
-  await page.waitForLoadState('domcontentloaded');
-  await page.waitForSelector('[data-testid="Actions-tool"][aria-hidden="false"]', { timeout: 30_000 });
-  await page.waitForSelector('canvas', { timeout: 15_000 }).catch(() => {});
-  await assertLoggedIn(page);
-  await dismissOverlays(page);
-  await page.waitForTimeout(800);
-  logger.info('Редактор загружен');
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= EDITOR_READY_ATTEMPTS; attempt += 1) {
+    try {
+      await page.waitForLoadState('domcontentloaded');
+      await page.waitForSelector(
+        '[data-testid="Actions-tool"][aria-hidden="false"]',
+        { timeout: EDITOR_READY_TIMEOUT_MS },
+      );
+      await page.waitForSelector('canvas', { timeout: 15_000 }).catch(() => {});
+      await assertLoggedIn(page);
+      await dismissOverlays(page);
+      await page.waitForTimeout(800);
+      logger.info('Редактор загружен');
+      return;
+    } catch (err) {
+      lastError = err;
+      if (attempt < EDITOR_READY_ATTEMPTS) {
+        logger.info(`Редактор Figma не готов (попытка ${attempt}/${EDITOR_READY_ATTEMPTS}) — обновляю...`);
+        await dismissOverlays(page);
+        await page.reload({ waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS }).catch(() => {});
+        await page.waitForTimeout(2000);
+      }
+    }
+  }
+
+  throw lastError || new Error('Редактор Figma не загрузился');
 }
 
 async function openActionsMenu(page) {
@@ -173,7 +196,23 @@ async function downloadFigmaFileWithContext(context, figmaUrl, destDir, linkName
     try {
       await page.bringToFront();
       logger.info(`Открываю: ${cleanUrl}`);
-      await page.goto(cleanUrl, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS });
+
+      let gotoError = null;
+      for (let attempt = 1; attempt <= NAV_ATTEMPTS; attempt += 1) {
+        try {
+          await page.goto(cleanUrl, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS });
+          gotoError = null;
+          break;
+        } catch (err) {
+          gotoError = err;
+          if (attempt < NAV_ATTEMPTS) {
+            logger.info(`Figma не открылась (попытка ${attempt}/${NAV_ATTEMPTS}) — повторяю...`);
+            await page.waitForTimeout(2000);
+          }
+        }
+      }
+      if (gotoError) throw gotoError;
+
       throwIfBackupCancelled();
       await waitForEditorReady(page);
       throwIfBackupCancelled();

@@ -23,6 +23,9 @@ const UPLOAD_MENU_ITEM_TIMEOUT_MS = 15_000;
 const DRIVE_CONFIRM_POLL_MS = 3000;
 const DRIVE_CONFIRM_GRACE_MS = 120_000;
 const DRIVE_ONLINE_RECOVERY_MS = 90_000;
+const DRIVE_FOLDER_URL_TIMEOUT_MS = 60_000;
+const REPLACE_DIALOG_TIMEOUT_MS = 90_000;
+const REPLACE_DIALOG_ATTEMPTS = 2;
 
 function formatSize(bytes) {
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} ГБ`;
@@ -166,12 +169,15 @@ async function dismissOfflineBanner(page) {
 async function confirmReplaceDialog(page) {
   logger.info('Подтверждаю замену файла в Google Drive...');
 
-  const deadline = Date.now() + 60_000;
+  const deadline = Date.now() + REPLACE_DIALOG_TIMEOUT_MS;
+  const modalPattern = /already exists|уже существует|дубликат|duplicate|конфликт|conflict|replace|заменить/i;
+  const replaceOptionPattern = /^(Replace existing file|Replace|Заменить существующий файл|Заменить)$/i;
+  const uploadBtnPattern = /^(Upload|Загрузить|Отправить|OK|ОК)$/i;
 
   while (Date.now() < deadline) {
     throwIfBackupCancelled();
-    const modal = page.locator('[aria-modal="true"]').filter({
-      hasText: /already exists|уже существует/i,
+    const modal = page.locator('[aria-modal="true"], [role="dialog"]').filter({
+      hasText: modalPattern,
     }).first();
 
     if (!(await modal.isVisible({ timeout: 500 }).catch(() => false))) {
@@ -179,21 +185,36 @@ async function confirmReplaceDialog(page) {
       continue;
     }
 
-    const replaceOption = modal.getByText(
-      /^(Replace existing file|Заменить существующий файл)$/i,
-      { exact: true },
-    ).first();
-    if (await replaceOption.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await replaceOption.click();
-      await sleep(400);
+    const replaceCandidates = [
+      modal.getByRole('radio', { name: /replace|заменить/i }).first(),
+      modal.getByRole('button', { name: /replace|заменить/i }).first(),
+      modal.getByText(replaceOptionPattern).first(),
+      modal.locator('label, [role="radio"], [role="option"]').filter({
+        hasText: /replace|заменить/i,
+      }).first(),
+    ];
+
+    for (const replaceOption of replaceCandidates) {
+      if (await replaceOption.isVisible({ timeout: 800 }).catch(() => false)) {
+        await replaceOption.click().catch(() => {});
+        await sleep(400);
+        break;
+      }
     }
 
-    const uploadBtn = modal.getByText(/^(Upload|Загрузить|Отправить)$/i, { exact: true }).first();
-    if (await uploadBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await uploadBtn.click();
-      logger.info('Замена подтверждена: Replace existing file → Upload');
-      await sleep(1000);
-      return true;
+    const uploadCandidates = [
+      modal.getByRole('button', { name: uploadBtnPattern }).first(),
+      modal.getByText(uploadBtnPattern, { exact: true }).first(),
+      modal.getByText(uploadBtnPattern).first(),
+    ];
+
+    for (const uploadBtn of uploadCandidates) {
+      if (await uploadBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await uploadBtn.click();
+        logger.info('Замена подтверждена в диалоге Google Drive');
+        await sleep(1000);
+        return true;
+      }
     }
 
     await sleep(500);
@@ -301,7 +322,7 @@ async function getUploadStatus(page) {
     }
   }
 
-  const workingToast = page.getByText(/^Working\.\.\.$|^Uploading \d/i).first();
+  const workingToast = page.getByText(/^Working\.\.\.$|^Uploading \d|^Выполняется|^Загрузка \d/i).first();
   if (await workingToast.isVisible({ timeout: 200 }).catch(() => false)) {
     const label = ((await workingToast.textContent().catch(() => '')) || '').trim();
     return { active: true, percent: null, label };
@@ -684,16 +705,25 @@ async function uploadFile(page, context, folderId, folderUrl, localFilePath) {
     await waitForDriveUiIdle(activePage, 60_000);
     activePage = await startUpload(activePage, liveContext, folderId, folderUrl, absolutePath);
 
-    if (replacing) {
-      const confirmed = await confirmReplaceDialog(activePage);
-      if (!confirmed) {
-        throw new Error('Не удалось подтвердить замену в Google Drive — старый файл остался на месте');
-      }
-    }
-
     for (let i = 0; i < 3; i += 1) {
       dismissNativeOpenPanelFallback();
       await sleep(200);
+    }
+
+    if (replacing) {
+      let confirmed = false;
+      for (let attempt = 1; attempt <= REPLACE_DIALOG_ATTEMPTS; attempt += 1) {
+        confirmed = await confirmReplaceDialog(activePage);
+        if (confirmed) break;
+        if (attempt < REPLACE_DIALOG_ATTEMPTS) {
+          logger.info(`Диалог замены не подтверждён (попытка ${attempt}/${REPLACE_DIALOG_ATTEMPTS}) — повторяю...`);
+          dismissNativeOpenPanelFallback();
+          await sleep(1500);
+        }
+      }
+      if (!confirmed) {
+        throw new Error('Не удалось подтвердить замену в Google Drive — старый файл остался на месте');
+      }
     }
 
     activePage = await waitForUploadToStart(activePage, liveContext, folderId, folderUrl);

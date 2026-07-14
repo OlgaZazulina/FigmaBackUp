@@ -2,6 +2,8 @@ const { assertLoggedInToDrive } = require('./session');
 const { ensureLiveContext, forceReconnectContext } = require('../playwright/chrome-manager');
 const logger = require('../logger');
 
+const DRIVE_FOLDER_URL_TIMEOUT_MS = 60_000;
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -30,14 +32,33 @@ async function getLiveContext(context) {
   }
 }
 
-async function waitForDriveFolder(page, folderId) {
-  await page.waitForURL(new RegExp(`/folders/${folderId}|id=${folderId}`), { timeout: 30_000 });
-  await page.waitForSelector('[data-target="drive"]', { timeout: 30_000 }).catch(() => {});
-  await assertLoggedInToDrive(page);
+async function waitForDriveFolder(page, folderId, { timeoutMs = DRIVE_FOLDER_URL_TIMEOUT_MS, attempts = 2 } = {}) {
+  let lastError = null;
 
-  if (!page.url().includes(folderId)) {
-    throw new Error(`Не удалось открыть папку Drive: ${folderId}`);
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      await page.waitForURL(
+        new RegExp(`/folders/${folderId}|id=${folderId}|/drive/u/\\d+/folders/${folderId}`),
+        { timeout: timeoutMs },
+      );
+      await page.waitForSelector('[data-target="drive"]', { timeout: timeoutMs }).catch(() => {});
+      await assertLoggedInToDrive(page);
+
+      if (!page.url().includes(folderId)) {
+        throw new Error(`Не удалось открыть папку Drive: ${folderId}`);
+      }
+      return;
+    } catch (err) {
+      lastError = err;
+      if (attempt < attempts) {
+        logger.info(`Папка Drive не загрузилась (попытка ${attempt}/${attempts}) — обновляю...`);
+        await page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+        await sleep(2000);
+      }
+    }
   }
+
+  throw lastError || new Error(`Не удалось открыть папку Drive: ${folderId}`);
 }
 
 async function openOnFolderPage(page, folderId, folderUrl) {
