@@ -7,13 +7,22 @@ const { throwIfBackupCancelled } = require('../backup/cancel');
 const { ensureLiveContext } = require('../playwright/chrome-manager');
 
 const EXPORT_TIMEOUT_MS = 2 * 60 * 60 * 1000;
-const NAV_TIMEOUT_MS = 120_000;
-const EDITOR_READY_TIMEOUT_MS = 60_000;
-const NAV_ATTEMPTS = 2;
-const EDITOR_READY_ATTEMPTS = 2;
+const NAV_TIMEOUT_MS = 180_000;
+const LOAD_STATE_TIMEOUT_MS = 120_000;
+const EDITOR_READY_TIMEOUT_MS = 120_000;
+const NAV_ATTEMPTS = 3;
+const EDITOR_READY_ATTEMPTS = 3;
 const PALETTE_ATTEMPTS = 3;
 const PALETTE_INPUT_TIMEOUT_MS = 20_000;
 const SAVE_AS_QUERY_TIMEOUT_MS = 8_000;
+const BETWEEN_FILES_PAUSE_MS = 2_000;
+
+const EDITOR_READY_SELECTORS = [
+  '[data-testid="Actions-tool"][aria-hidden="false"]',
+  '[data-testid="Actions-tool"]',
+  '[data-testid="tool-bar"]',
+  '[data-testid="editor"]',
+];
 
 function isContextClosedError(err) {
   return /closed|detached|destroyed|crashed/i.test(err?.message || '');
@@ -40,9 +49,69 @@ function normalizeFigmaUrl(url) {
   return `https://www.figma.com/${type}/${key}/`;
 }
 
+async function describePage(page) {
+  const url = page.url();
+  const title = await page.title().catch(() => '');
+  return `${url}${title ? ` — ${title}` : ''}`;
+}
+
+async function waitForDomReady(page) {
+  await page.waitForLoadState('domcontentloaded', { timeout: LOAD_STATE_TIMEOUT_MS }).catch(async () => {
+    logger.info(`domcontentloaded не сработал за ${LOAD_STATE_TIMEOUT_MS / 1000}с — продолжаю (${page.url()})`);
+  });
+}
+
+async function waitForEditorToolbar(page, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    throwIfBackupCancelled();
+    for (const selector of EDITOR_READY_SELECTORS) {
+      const el = page.locator(selector).first();
+      if (await el.isVisible({ timeout: 1000 }).catch(() => false)) {
+        return selector;
+      }
+    }
+    await page.waitForTimeout(1500);
+  }
+
+  throw new Error(`панель инструментов не появилась (${await describePage(page)})`);
+}
+
+async function openFigmaPage(page, cleanUrl) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= NAV_ATTEMPTS; attempt += 1) {
+    try {
+      const waitUntil = attempt === NAV_ATTEMPTS ? 'commit' : 'domcontentloaded';
+      logger.info(`Открываю Figma (попытка ${attempt}/${NAV_ATTEMPTS}, waitUntil=${waitUntil})...`);
+      await page.goto(cleanUrl, { waitUntil, timeout: NAV_TIMEOUT_MS });
+      await waitForDomReady(page);
+      await assertLoggedIn(page);
+      return;
+    } catch (err) {
+      lastError = err;
+      if (attempt < NAV_ATTEMPTS) {
+        logger.info(`Figma не открылась (попытка ${attempt}/${NAV_ATTEMPTS}) — повторяю...`);
+        await page.waitForTimeout(2000);
+        if (attempt === NAV_ATTEMPTS - 1) {
+          await page.reload({ waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS }).catch(() => {});
+        }
+      }
+    }
+  }
+
+  throw lastError || new Error(`Не удалось открыть Figma: ${cleanUrl}`);
+}
+
 async function assertLoggedIn(page) {
   const url = page.url();
   if (url.includes('/login') || url.includes('accounts.google.com')) {
+    throw new Error('Сессия Figma истекла. Нажмите «Авторизоваться в Figma» заново.');
+  }
+
+  const loginPrompt = page.getByRole('button', { name: /log in|sign in|войти/i }).first();
+  if (await loginPrompt.isVisible({ timeout: 1000 }).catch(() => false)) {
     throw new Error('Сессия Figma истекла. Нажмите «Авторизоваться в Figma» заново.');
   }
 }
@@ -60,16 +129,14 @@ async function waitForEditorReady(page) {
 
   for (let attempt = 1; attempt <= EDITOR_READY_ATTEMPTS; attempt += 1) {
     try {
-      await page.waitForLoadState('domcontentloaded');
-      await page.waitForSelector(
-        '[data-testid="Actions-tool"][aria-hidden="false"]',
-        { timeout: EDITOR_READY_TIMEOUT_MS },
-      );
+      await dismissOverlays(page);
+      await waitForDomReady(page);
+      const selector = await waitForEditorToolbar(page, EDITOR_READY_TIMEOUT_MS);
       await page.waitForSelector('canvas', { timeout: 15_000 }).catch(() => {});
       await assertLoggedIn(page);
       await dismissOverlays(page);
       await page.waitForTimeout(800);
-      logger.info('Редактор загружен');
+      logger.info(`Редактор загружен (${selector})`);
       return;
     } catch (err) {
       lastError = err;
@@ -77,12 +144,14 @@ async function waitForEditorReady(page) {
         logger.info(`Редактор Figma не готов (попытка ${attempt}/${EDITOR_READY_ATTEMPTS}) — обновляю...`);
         await dismissOverlays(page);
         await page.reload({ waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS }).catch(() => {});
-        await page.waitForTimeout(2000);
+        await page.waitForTimeout(3000);
       }
     }
   }
 
-  throw lastError || new Error('Редактор Figma не загрузился');
+  const details = await describePage(page).catch(() => page.url());
+  const message = lastError?.message || 'Редактор Figma не загрузился';
+  throw new Error(`${message}. Страница: ${details}`);
 }
 
 async function openActionsMenu(page) {
@@ -196,22 +265,7 @@ async function downloadFigmaFileWithContext(context, figmaUrl, destDir, linkName
     try {
       await page.bringToFront();
       logger.info(`Открываю: ${cleanUrl}`);
-
-      let gotoError = null;
-      for (let attempt = 1; attempt <= NAV_ATTEMPTS; attempt += 1) {
-        try {
-          await page.goto(cleanUrl, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS });
-          gotoError = null;
-          break;
-        } catch (err) {
-          gotoError = err;
-          if (attempt < NAV_ATTEMPTS) {
-            logger.info(`Figma не открылась (попытка ${attempt}/${NAV_ATTEMPTS}) — повторяю...`);
-            await page.waitForTimeout(2000);
-          }
-        }
-      }
-      if (gotoError) throw gotoError;
+      await openFigmaPage(page, cleanUrl);
 
       throwIfBackupCancelled();
       await waitForEditorReady(page);
@@ -225,4 +279,9 @@ async function downloadFigmaFileWithContext(context, figmaUrl, destDir, linkName
   });
 }
 
-module.exports = { downloadFigmaFileWithContext, normalizeFigmaUrl };
+module.exports = {
+  downloadFigmaFileWithContext,
+  normalizeFigmaUrl,
+  EDITOR_READY_SELECTORS,
+  BETWEEN_FILES_PAUSE_MS,
+};

@@ -3,7 +3,7 @@ const path = require('path');
 const { getEnabledLinks, getEnabledLinksByIds, getLinksByIds } = require('../store/links');
 const { BACKUP_DIR } = require('../store/paths');
 const { acquireContext, ensureLiveContext } = require('../playwright/chrome-manager');
-const { downloadFigmaFileWithContext } = require('../figma/download');
+const { downloadFigmaFileWithContext, BETWEEN_FILES_PAUSE_MS } = require('../figma/download');
 const { uploadToDriveFolderWithContext } = require('../drive/upload');
 const { getDriveFileInfoWithContext } = require('../drive/file-info');
 const {
@@ -126,6 +126,8 @@ async function runBackup(linkIds = null, { force = false } = {}) {
         logger.error(`«${link.name}» — ${err.message}`);
         errors.push({ name: link.name, message: err.message });
       }
+
+      await new Promise((resolve) => setTimeout(resolve, BETWEEN_FILES_PAUSE_MS));
     }
   } finally {
     stopSleepGuard();
